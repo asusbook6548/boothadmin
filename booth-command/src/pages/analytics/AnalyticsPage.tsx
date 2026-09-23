@@ -37,14 +37,120 @@ export function AnalyticsPage() {
 
   useEffect(() => {
     setLoading(true);
+    const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
+
     Promise.all([
       analyticsApi.getOverview(),
       analyticsApi.getClassification(),
       analyticsApi.getVerification(),
-    ]).then(([ov, cl, vr]) => {
-      setOverview(ov.data);
-      setClassification(cl.data);
-      setVerification(vr.data);
+    ]).then(([ovRes, clRes, vrRes]) => {
+      // 1. Normalize overview
+      const ovObj = ovRes as unknown as Record<string, unknown>;
+      const rawOv = (ovObj && typeof ovObj === 'object' && ovObj.data && typeof ovObj.data === 'object')
+        ? ovObj.data as Record<string, unknown>
+        : ovObj ?? {};
+      const cls = (rawOv.classification ?? {}) as Record<string, { count?: number; percentage?: number }>;
+      const ver = (rawOv.verification ?? {}) as Record<string, { count?: number; percentage?: number }>;
+      const bth = (rawOv.booths ?? {}) as Record<string, number>;
+      const safeStat = (obj: Record<string, { count?: number; percentage?: number }>, key: string) => ({
+        count: safeNum(obj[key]?.count),
+        percentage: safeNum(obj[key]?.percentage),
+      });
+
+      const normalizedOverview: OverviewAnalytics = {
+        totalVoters: safeNum(rawOv.totalVoters),
+        verifiedVoters: safeNum(rawOv.verifiedVoters),
+        unverifiedVoters: safeNum(rawOv.unverifiedVoters),
+        classifiedVoters: safeNum(rawOv.classifiedVoters),
+        unclassifiedVoters: safeNum(rawOv.unclassifiedVoters),
+        totalBooths: safeNum(rawOv.totalBooths),
+        totalVolunteers: safeNum(rawOv.totalVolunteers),
+        classification: {
+          green: safeStat(cls, 'green'),
+          yellow: safeStat(cls, 'yellow'),
+          red: safeStat(cls, 'red'),
+          black: safeStat(cls, 'black'),
+          unclassified: safeStat(cls, 'unclassified') ?? safeStat(cls, 'none') ?? { count: 0, percentage: 0 },
+        },
+        verification: {
+          verified: safeStat(ver, 'verified'),
+          unverified: safeStat(ver, 'unverified'),
+        },
+        booths: {
+          total: safeNum(bth.total),
+          strong: safeNum(bth.strong),
+          weak: safeNum(bth.weak),
+          opportunity: safeNum(bth.opportunity),
+          highConfidence: safeNum(bth.highConfidence),
+        },
+      };
+      setOverview(normalizedOverview);
+
+      // 2. Normalize classification
+      const clObj = clRes as unknown as Record<string, unknown>;
+      const rawCl = (clObj && typeof clObj === 'object' && clObj.data && typeof clObj.data === 'object' && !Array.isArray(clObj.data))
+        ? clObj.data as Record<string, unknown>
+        : clObj ?? {};
+      const clTotal = safeNum(rawCl.total ?? rawCl.totalVoters);
+      const items = Array.isArray(rawCl.data) ? (rawCl.data as Array<{ classification?: string; count?: number; percentage?: number }>) : [];
+      const mapFromData: Record<string, { count: number; percentage: number }> = {};
+      for (const it of items) {
+        if (it.classification) {
+          mapFromData[it.classification.toLowerCase()] = {
+            count: safeNum(it.count),
+            percentage: safeNum(it.percentage),
+          };
+        }
+      }
+      const getClCat = (key: string) => {
+        if (mapFromData[key]) return mapFromData[key];
+        const val = rawCl[key];
+        if (typeof val === 'number') {
+          return { count: val, percentage: clTotal > 0 ? (val / clTotal) * 100 : 0 };
+        }
+        if (val && typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          return { count: safeNum(o.count), percentage: safeNum(o.percentage) };
+        }
+        return { count: 0, percentage: 0 };
+      };
+      const normalizedClassification: ClassificationAnalytics = {
+        totalVoters: clTotal,
+        classifiedVoters: safeNum(rawCl.classifiedVoters),
+        unclassifiedVoters: safeNum(rawCl.unclassifiedVoters ?? rawCl.unclassified ?? mapFromData['unclassified']?.count),
+        green: getClCat('green'),
+        yellow: getClCat('yellow'),
+        red: getClCat('red'),
+        black: getClCat('black'),
+      };
+      setClassification(normalizedClassification);
+
+      // 3. Normalize verification
+      const vrObj = vrRes as unknown as Record<string, unknown>;
+      const rawVr = (vrObj && typeof vrObj === 'object' && vrObj.data && typeof vrObj.data === 'object')
+        ? vrObj.data as Record<string, unknown>
+        : vrObj ?? {};
+      const vrTotal = safeNum(rawVr.total ?? rawVr.totalVoters);
+      const getVrCat = (key: 'verified' | 'unverified') => {
+        const val = rawVr[key];
+        if (typeof val === 'number') {
+          const pct = key === 'verified' && rawVr.verifiedPercentage !== undefined
+            ? safeNum(rawVr.verifiedPercentage)
+            : (vrTotal > 0 ? (val / vrTotal) * 100 : 0);
+          return { count: val, percentage: pct };
+        }
+        if (val && typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          return { count: safeNum(o.count), percentage: safeNum(o.percentage) };
+        }
+        return { count: 0, percentage: 0 };
+      };
+      const normalizedVerification: VerificationAnalytics = {
+        totalVoters: vrTotal,
+        verified: getVrCat('verified'),
+        unverified: getVrCat('unverified'),
+      };
+      setVerification(normalizedVerification);
     }).catch(() => setError('Failed to load analytics')).finally(() => setLoading(false));
   }, []);
 
@@ -62,11 +168,11 @@ export function AnalyticsPage() {
   if (error) return <ErrorState message={error} />;
 
   const pieData = overview ? [
-    { name: 'GREEN', value: overview.classification.green.count },
-    { name: 'YELLOW', value: overview.classification.yellow.count },
-    { name: 'RED', value: overview.classification.red.count },
-    { name: 'BLACK', value: overview.classification.black.count },
-    { name: 'Unclassified', value: overview.classification.unclassified.count },
+    { name: 'GREEN', value: overview.classification?.green?.count ?? 0 },
+    { name: 'YELLOW', value: overview.classification?.yellow?.count ?? 0 },
+    { name: 'RED', value: overview.classification?.red?.count ?? 0 },
+    { name: 'BLACK', value: overview.classification?.black?.count ?? 0 },
+    { name: 'Unclassified', value: overview.classification?.unclassified?.count ?? 0 },
   ].filter(d => d.value > 0) : [];
 
   return (
@@ -128,16 +234,16 @@ export function AnalyticsPage() {
                 <h3 className="section-title">Verification Status</h3>
                 <div className="space-y-4 mt-4">
                   {[
-                    { label: 'Verified', pct: verification.verified.percentage, count: verification.verified.count, color: '#10b981' },
-                    { label: 'Unverified', pct: verification.unverified.percentage, count: verification.unverified.count, color: '#f59e0b' },
+                    { label: 'Verified', pct: verification.verified?.percentage ?? 0, count: verification.verified?.count ?? 0, color: '#10b981' },
+                    { label: 'Unverified', pct: verification.unverified?.percentage ?? 0, count: verification.unverified?.count ?? 0, color: '#f59e0b' },
                   ].map((r) => (
                     <div key={r.label}>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium text-gray-700">{r.label}</span>
-                        <span className="text-gray-500">{r.count.toLocaleString()} ({r.pct.toFixed(1)}%)</span>
+                        <span className="text-gray-500">{(r.count ?? 0).toLocaleString()} ({(r.pct ?? 0).toFixed(1)}%)</span>
                       </div>
                       <div className="h-3 bg-gray-100 rounded-full">
-                        <div className="h-3 rounded-full" style={{ width: `${r.pct}%`, backgroundColor: r.color }} />
+                        <div className="h-3 rounded-full" style={{ width: `${r.pct ?? 0}%`, backgroundColor: r.color }} />
                       </div>
                     </div>
                   ))}
@@ -159,10 +265,10 @@ export function AnalyticsPage() {
           ].map((c) => (
             <div key={c.label} className="card p-5" style={{ borderLeft: `4px solid ${c.color}` }}>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{c.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{c.data.count.toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-1">{c.data.percentage.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{(c.data?.count ?? 0).toLocaleString()}</p>
+              <p className="text-sm text-gray-500 mt-1">{(c.data?.percentage ?? 0).toFixed(1)}%</p>
               <div className="h-1.5 bg-gray-100 rounded-full mt-2">
-                <div className="h-1.5 rounded-full" style={{ width: `${c.data.percentage}%`, backgroundColor: c.color }} />
+                <div className="h-1.5 rounded-full" style={{ width: `${c.data?.percentage ?? 0}%`, backgroundColor: c.color }} />
               </div>
             </div>
           ))}
@@ -178,8 +284,8 @@ export function AnalyticsPage() {
           ].map((v) => (
             <div key={v.label} className="card p-6" style={{ borderLeft: `4px solid ${v.color}` }}>
               <p className="text-sm font-semibold text-gray-500">{v.label}</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{v.data.count.toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-1">{v.data.percentage.toFixed(2)}% of total voters</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{(v.data?.count ?? 0).toLocaleString()}</p>
+              <p className="text-sm text-gray-500 mt-1">{(v.data?.percentage ?? 0).toFixed(2)}% of total voters</p>
             </div>
           ))}
         </div>

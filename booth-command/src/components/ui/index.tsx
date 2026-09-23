@@ -237,3 +237,5 @@ export function Pagination({ page, totalPages, total, limit, onPageChange, onLim
     </div>
   );
 }
+
+export { ErrorBoundary } from './ErrorBoundary';

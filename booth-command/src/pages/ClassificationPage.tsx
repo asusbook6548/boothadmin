@@ -18,12 +18,24 @@ const CLASSIFICATION_OPTS: { value: string; label: string }[] = [
 ];
 
 
-function SummaryCard({ label, count, percentage, colorClass }: { label: string; count: number; percentage: number; colorClass: string }) {
+function SummaryCard({
+  label,
+  count,
+  percentage,
+  colorClass,
+}: {
+  label: string;
+  count?: number;
+  percentage?: number;
+  colorClass: string;
+}) {
+  const safeCount = typeof count === 'number' && !isNaN(count) ? count : 0;
+  const safePercentage = typeof percentage === 'number' && !isNaN(percentage) ? percentage : 0;
   return (
     <div className={`card p-4 ${colorClass}`}>
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{count.toLocaleString()}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{percentage.toFixed(1)}% of total</p>
+      <p className="text-2xl font-bold text-gray-900 mt-1">{safeCount.toLocaleString()}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{safePercentage.toFixed(1)}% of total</p>
     </div>
   );
 }
@@ -59,7 +71,43 @@ export function ClassificationPage() {
   const loadSummary = () => {
     setSummaryLoading(true);
     classificationApi.getSummary()
-      .then((r) => setSummary(r.data))
+      .then((res) => {
+        const resObj = res as unknown as Record<string, unknown>;
+        const raw = (resObj && typeof resObj === 'object' && resObj.data && typeof resObj.data === 'object')
+          ? resObj.data as Record<string, unknown>
+          : resObj ?? {};
+
+        const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
+        const totalVoters = safeNum(raw.total ?? raw.totalVoters);
+        const unclassifiedVoters = safeNum(raw.unclassified ?? raw.unclassifiedVoters);
+        const percentages = (raw.percentages ?? {}) as Record<string, unknown>;
+
+        const extractCategory = (key: string) => {
+          const val = raw[key];
+          if (typeof val === 'number') {
+            const pct = safeNum(percentages[key]) || (totalVoters > 0 ? (val / totalVoters) * 100 : 0);
+            return { count: val, percentage: pct };
+          }
+          if (val && typeof val === 'object') {
+            const obj = val as Record<string, unknown>;
+            const count = safeNum(obj.count);
+            const pct = safeNum(obj.percentage) || (totalVoters > 0 ? (count / totalVoters) * 100 : 0);
+            return { count, percentage: pct };
+          }
+          return { count: 0, percentage: safeNum(percentages[key]) };
+        };
+
+        const normalized: ClassificationSummary = {
+          totalVoters,
+          classifiedVoters: safeNum(raw.classifiedVoters) || (totalVoters - unclassifiedVoters),
+          unclassifiedVoters,
+          green: extractCategory('green'),
+          yellow: extractCategory('yellow'),
+          red: extractCategory('red'),
+          black: extractCategory('black'),
+        };
+        setSummary(normalized);
+      })
       .catch(() => {})
       .finally(() => setSummaryLoading(false));
   };
@@ -111,7 +159,8 @@ export function ClassificationPage() {
     setBulkLoading(true);
     try {
       const res = await classificationApi.bulk(Array.from(selectedIds), bulkClass);
-      toast.success(`Classification updated for ${res.data.count} voters`);
+      const updatedCount = res.data?.count ?? selectedIds.size;
+      toast.success(`Classification updated for ${updatedCount} voters`);
       setBulkConfirm(false);
       setSelectedIds(new Set());
       loadVoters();
@@ -156,10 +205,10 @@ export function ClassificationPage() {
         </div>
       ) : summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <SummaryCard label="Green" count={summary.green.count} percentage={summary.green.percentage} colorClass="border-l-4 border-emerald-500" />
-          <SummaryCard label="Yellow" count={summary.yellow.count} percentage={summary.yellow.percentage} colorClass="border-l-4 border-amber-400" />
-          <SummaryCard label="Red" count={summary.red.count} percentage={summary.red.percentage} colorClass="border-l-4 border-red-500" />
-          <SummaryCard label="Black" count={summary.black.count} percentage={summary.black.percentage} colorClass="border-l-4 border-slate-900" />
+          <SummaryCard label="Green" count={summary.green?.count} percentage={summary.green?.percentage} colorClass="border-l-4 border-emerald-500" />
+          <SummaryCard label="Yellow" count={summary.yellow?.count} percentage={summary.yellow?.percentage} colorClass="border-l-4 border-amber-400" />
+          <SummaryCard label="Red" count={summary.red?.count} percentage={summary.red?.percentage} colorClass="border-l-4 border-red-500" />
+          <SummaryCard label="Black" count={summary.black?.count} percentage={summary.black?.percentage} colorClass="border-l-4 border-slate-900" />
           <SummaryCard label="Unclassified" count={summary.unclassifiedVoters} percentage={summary.totalVoters > 0 ? (summary.unclassifiedVoters / summary.totalVoters) * 100 : 0} colorClass="border-l-4 border-gray-300" />
         </div>
       )}

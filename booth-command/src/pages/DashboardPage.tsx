@@ -138,11 +138,11 @@ export function DashboardPage() {
   }
 
   const classificationPieData = [
-    { name: 'GREEN', value: data.classification.green.count },
-    { name: 'YELLOW', value: data.classification.yellow.count },
-    { name: 'RED', value: data.classification.red.count },
-    { name: 'BLACK', value: data.classification.black.count },
-    { name: 'Unclassified', value: data.classification.unclassified.count },
+    { name: 'GREEN', value: data.classification?.green?.count ?? 0 },
+    { name: 'YELLOW', value: data.classification?.yellow?.count ?? 0 },
+    { name: 'RED', value: data.classification?.red?.count ?? 0 },
+    { name: 'BLACK', value: data.classification?.black?.count ?? 0 },
+    { name: 'Unclassified', value: data.classification?.unclassified?.count ?? 0 },
   ].filter((d) => d.value > 0);
 
   const boothBarData = [
