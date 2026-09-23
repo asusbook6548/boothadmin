@@ -59,10 +59,19 @@ export function VotersPage() {
     setError('');
     votersApi.getAll({ ...filters, search: debouncedSearch })
       .then((res) => {
-        const d = res.data as unknown as { voters: Voter[]; total: number; totalPages: number };
-        setVoters(d.voters ?? []);
-        setTotal(d.total ?? 0);
-        setTotalPages(d.totalPages ?? 1);
+        const d = res.data as unknown as {
+          voters?: Voter[];
+          data?: Voter[];
+          total?: number;
+          totalPages?: number;
+          pagination?: { total: number; totalPages: number };
+        };
+        const list = d.voters ?? d.data ?? (Array.isArray(d) ? d : []);
+        const totalCount = d.total ?? d.pagination?.total ?? list.length;
+        const pages = d.totalPages ?? d.pagination?.totalPages ?? Math.max(1, Math.ceil(totalCount / (filters.limit || 20)));
+        setVoters(list);
+        setTotal(totalCount);
+        setTotalPages(pages);
       })
       .catch(() => setError('Failed to load voters'))
       .finally(() => setLoading(false));

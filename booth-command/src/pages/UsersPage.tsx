@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
-import { Button, EmptyState, ErrorState, Input, Pagination } from '../components/ui';
+import { Button, EmptyState, ErrorState, Input, Pagination, Select } from '../components/ui';
 import { UserStatusBadge } from '../components/shared/Badges';
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { useForm } from 'react-hook-form';
@@ -22,6 +22,7 @@ export function UsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const debouncedSearch = useDebounce(search);
@@ -38,18 +39,38 @@ export function UsersPage() {
 
   const load = () => {
     setLoading(true);
-    usersApi.getAll({ page, limit: 20, search: debouncedSearch || undefined })
+    usersApi.getAll({
+      page,
+      limit: 20,
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+    })
       .then((r) => {
-        const d = r.data as unknown as { users: User[]; total: number; totalPages: number };
-        setUsers(d.users ?? []);
-        setTotal(d.total ?? 0);
-        setTotalPages(d.totalPages ?? 1);
+        const payload = (r?.data ?? r) as unknown as Record<string, unknown>;
+        const list: User[] = Array.isArray(payload)
+          ? (payload as User[])
+          : Array.isArray(payload.data)
+          ? (payload.data as User[])
+          : Array.isArray(payload.users)
+          ? (payload.users as User[])
+          : [];
+        const safeNum = (v: unknown, fallback: number): number =>
+          typeof v === 'number' && !isNaN(v) ? v : fallback;
+        const total = safeNum(payload.total, list.length);
+        const totalPages = safeNum(
+          payload.totalPages,
+          Math.max(1, Math.ceil(total / 20))
+        );
+
+        setUsers(list);
+        setTotal(total);
+        setTotalPages(totalPages);
       })
       .catch(() => setError('Failed to load users'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [page, debouncedSearch]);
+  useEffect(() => { load(); }, [page, debouncedSearch, statusFilter]);
 
   const openEdit = (u: User) => {
     setEditUser(u);
@@ -113,10 +134,20 @@ export function UsersPage() {
       </div>
 
       <div className="card">
-        <div className="filter-bar rounded-t-xl">
+        <div className="filter-bar rounded-t-xl gap-3 flex-wrap">
           <div className="flex-1 min-w-48 max-w-xs">
             <Input placeholder="Search name or email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} icon={<Search className="w-4 h-4" />} />
           </div>
+          <Select
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'INACTIVE', label: 'Inactive' },
+            ]}
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            className="text-sm min-w-36"
+          />
         </div>
 
         <table className="data-table">
@@ -142,7 +173,14 @@ export function UsersPage() {
             ) : (
               users.map((u) => (
                 <tr key={u.id}>
-                  <td className="font-medium text-gray-900">{u.name}</td>
+                  <td className="font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <span>{u.name}</span>
+                      {(u.name.toLowerCase().includes('system') || u.email === 'admin@boothcommand.com') && (
+                        <span className="badge badge-amber text-xs font-semibold">System User</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="text-gray-600">{u.email}</td>
                   <td><span className="badge badge-indigo">{u.role}</span></td>
                   <td><UserStatusBadge value={u.status} /></td>
