@@ -18,18 +18,22 @@ export function Button({ variant = 'primary', size = 'md', loading, icon, childr
     secondary: 'btn-secondary',
     danger: 'btn-danger',
     success: 'btn-success',
-    ghost: 'btn bg-transparent text-gray-600 hover:bg-gray-100',
+    ghost: 'btn-ghost',
   }[variant];
 
-  const sizeClass = { sm: 'btn-sm', md: '', lg: 'btn-lg' }[size];
+  const sizeClass = { sm: 'btn-sm', md: 'btn-md', lg: 'btn-lg' }[size];
 
   return (
     <button
-      className={clsx(variantClass, sizeClass, className)}
+      className={clsx('btn', variantClass, sizeClass, className)}
       disabled={disabled || loading}
       {...props}
     >
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
+      {loading ? (
+        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+      ) : (
+        icon && <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
+      )}
       {children}
     </button>
   );
