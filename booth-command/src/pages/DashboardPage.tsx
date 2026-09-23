@@ -68,7 +68,51 @@ export function DashboardPage() {
     setLoading(true);
     setError('');
     analyticsApi.getOverview()
-      .then((res) => setData(res.data))
+      .then((res) => {
+        // Normalize: backend may use different field names or omit sub-fields
+        const raw = res.data as unknown as Record<string, unknown>;
+        const cls = (raw.classification ?? {}) as Record<string, { count?: number; percentage?: number }>;
+        const ver = (raw.verification ?? {}) as Record<string, { count?: number; percentage?: number }>;
+        const bth = (raw.booths ?? {}) as Record<string, number>;
+
+        const safeNum = (v: unknown): number => (typeof v === 'number' ? v : 0);
+        const safeStat = (obj: Record<string, { count?: number; percentage?: number }>, key: string) => ({
+          count: safeNum(obj[key]?.count),
+          percentage: safeNum(obj[key]?.percentage),
+        });
+
+        const normalized: OverviewAnalytics = {
+          totalVoters: safeNum(raw.totalVoters),
+          verifiedVoters: safeNum(raw.verifiedVoters),
+          unverifiedVoters: safeNum(raw.unverifiedVoters),
+          classifiedVoters: safeNum(raw.classifiedVoters),
+          unclassifiedVoters: safeNum(raw.unclassifiedVoters),
+          totalBooths: safeNum(raw.totalBooths),
+          totalVolunteers: safeNum(raw.totalVolunteers),
+          classification: {
+            green: safeStat(cls, 'green'),
+            yellow: safeStat(cls, 'yellow'),
+            red: safeStat(cls, 'red'),
+            black: safeStat(cls, 'black'),
+            // backend may call it 'none', 'unclassified', or missing
+            unclassified: safeStat(cls, 'unclassified')
+              ?? safeStat(cls, 'none')
+              ?? { count: 0, percentage: 0 },
+          },
+          verification: {
+            verified: safeStat(ver, 'verified'),
+            unverified: safeStat(ver, 'unverified'),
+          },
+          booths: {
+            total: safeNum(bth.total),
+            strong: safeNum(bth.strong),
+            weak: safeNum(bth.weak),
+            opportunity: safeNum(bth.opportunity),
+            highConfidence: safeNum(bth.highConfidence),
+          },
+        };
+        setData(normalized);
+      })
       .catch(() => setError('Failed to load dashboard data'))
       .finally(() => setLoading(false));
   };
@@ -123,9 +167,9 @@ export function DashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           <KpiCard label="Total Voters" value={data.totalVoters} icon={<Users className="w-5 h-5" />} color="indigo" />
           <KpiCard label="Verified" value={data.verifiedVoters} icon={<CheckCircle className="w-5 h-5" />}
-            sublabel={`${data.verification.verified.percentage.toFixed(1)}% of total`} color="green" />
+            sublabel={`${(data.verification?.verified?.percentage ?? 0).toFixed(1)}% of total`} color="green" />
           <KpiCard label="Unverified" value={data.unverifiedVoters} icon={<XCircle className="w-5 h-5" />}
-            sublabel={`${data.verification.unverified.percentage.toFixed(1)}% of total`} color="amber" />
+            sublabel={`${(data.verification?.unverified?.percentage ?? 0).toFixed(1)}% of total`} color="amber" />
           <KpiCard label="Classified" value={data.classifiedVoters} icon={<Tags className="w-5 h-5" />} color="slate" />
         </div>
       </div>
@@ -146,11 +190,11 @@ export function DashboardPage() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold text-gray-800 mb-4">Voter Classification</h3>
           <div className="flex flex-col gap-3">
-            <ClassificationProgressBar label="GREEN" count={data.classification.green.count} percentage={data.classification.green.percentage} color="green" />
-            <ClassificationProgressBar label="YELLOW" count={data.classification.yellow.count} percentage={data.classification.yellow.percentage} color="yellow" />
-            <ClassificationProgressBar label="RED" count={data.classification.red.count} percentage={data.classification.red.percentage} color="red" />
-            <ClassificationProgressBar label="BLACK" count={data.classification.black.count} percentage={data.classification.black.percentage} color="black" />
-            <ClassificationProgressBar label="Unclassified" count={data.classification.unclassified.count} percentage={data.classification.unclassified.percentage} color="unclassified" />
+            <ClassificationProgressBar label="GREEN" count={data.classification?.green?.count ?? 0} percentage={data.classification?.green?.percentage ?? 0} />
+            <ClassificationProgressBar label="YELLOW" count={data.classification?.yellow?.count ?? 0} percentage={data.classification?.yellow?.percentage ?? 0} />
+            <ClassificationProgressBar label="RED" count={data.classification?.red?.count ?? 0} percentage={data.classification?.red?.percentage ?? 0} />
+            <ClassificationProgressBar label="BLACK" count={data.classification?.black?.count ?? 0} percentage={data.classification?.black?.percentage ?? 0} />
+            <ClassificationProgressBar label="Unclassified" count={data.classification?.unclassified?.count ?? 0} percentage={data.classification?.unclassified?.percentage ?? 0} />
           </div>
         </div>
 
