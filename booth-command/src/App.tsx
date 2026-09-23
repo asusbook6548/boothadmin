@@ -1,125 +1,173 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './store/auth.context';
+import { AdminLayout } from './components/layout/AdminLayout';
+import { LoginPage } from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { AssembliesPage } from './pages/AssembliesPage';
+import { AssemblyDetailPage } from './pages/AssemblyDetailPage';
+import { BoothsPage } from './pages/BoothsPage';
+import { BoothDetailPage } from './pages/BoothDetailPage';
+import { VotersPage } from './pages/VotersPage';
+import { VoterDetailPage } from './pages/VoterDetailPage';
+import { ClassificationPage } from './pages/ClassificationPage';
+import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
+import { BoothAnalysisPage } from './pages/analytics/BoothAnalysisPage';
+import {
+  SummaryReportPage, VotersReportPage, BoothsReportPage,
+  VolunteersReportPage, ClassificationReportPage
+} from './pages/ReportsPage';
+import { ImportPage } from './pages/ImportPage';
+import { VolunteersPage } from './pages/VolunteersPage';
+import { VolunteerDetailPage } from './pages/VolunteerDetailPage';
+import { UsersPage } from './pages/UsersPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { AuditLogsPage } from './pages/AuditLogsPage';
+import { Spinner } from './components/ui';
 
-function App() {
-  const [count, setCount] = useState(0)
+// ============================================================
+// PROTECTED ROUTE GUARD
+// ============================================================
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}   
-        </button>
-      </section>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
-      <div className="ticks"></div>
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>  
-
-
-          kkkk
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  return <>{children}</>;
 }
 
-export default App
+// ============================================================
+// PUBLIC ROUTE GUARD (redirect to dashboard if already logged in)
+// ============================================================
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ============================================================
+// APP ROUTES
+// ============================================================
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+
+      {/* Protected — Admin Layout */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/dashboard" element={<DashboardPage />} />
+
+        {/* Assemblies */}
+        <Route path="/assemblies" element={<AssembliesPage />} />
+        <Route path="/assemblies/:id" element={<AssemblyDetailPage />} />
+
+        {/* Booths */}
+        <Route path="/booths" element={<BoothsPage />} />
+        <Route path="/booths/:id" element={<BoothDetailPage />} />
+
+        {/* Voters */}
+        <Route path="/voters" element={<VotersPage />} />
+        <Route path="/voters/:id" element={<VoterDetailPage />} />
+
+        {/* Classification */}
+        <Route path="/classification" element={<ClassificationPage />} />
+
+        {/* Analytics */}
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/analytics/classification" element={<AnalyticsPage />} />
+        <Route path="/analytics/verification" element={<AnalyticsPage />} />
+        <Route path="/analytics/booths-table" element={<AnalyticsPage />} />
+        <Route path="/analytics/booths/strong" element={<BoothAnalysisPage type="strong" />} />
+        <Route path="/analytics/booths/weak" element={<BoothAnalysisPage type="weak" />} />
+        <Route path="/analytics/booths/opportunity" element={<BoothAnalysisPage type="opportunity" />} />
+        <Route path="/analytics/booths/confidence" element={<BoothAnalysisPage type="confidence" />} />
+
+        {/* Reports */}
+        <Route path="/reports" element={<SummaryReportPage />} />
+        <Route path="/reports/voters" element={<VotersReportPage />} />
+        <Route path="/reports/booths" element={<BoothsReportPage />} />
+        <Route path="/reports/volunteers" element={<VolunteersReportPage />} />
+        <Route path="/reports/classification" element={<ClassificationReportPage />} />
+
+        {/* Import */}
+        <Route path="/import" element={<ImportPage />} />
+
+        {/* Volunteers */}
+        <Route path="/volunteers" element={<VolunteersPage />} />
+        <Route path="/volunteers/:id" element={<VolunteerDetailPage />} />
+
+        {/* Users */}
+        <Route path="/users" element={<UsersPage />} />
+
+        {/* Settings */}
+        <Route path="/settings" element={<SettingsPage />} />
+
+        {/* Audit Logs */}
+        <Route path="/audit-logs" element={<AuditLogsPage />} />
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+    </Routes>
+  );
+}
+
+// ============================================================
+// ROOT APP
+// ============================================================
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#1e293b',
+              color: '#f1f5f9',
+              fontSize: '14px',
+              borderRadius: '10px',
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+            },
+            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          }}
+        />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
