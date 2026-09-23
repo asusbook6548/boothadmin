@@ -8,11 +8,18 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDebounce } from '../hooks/useDebounce';
-import { Shield, Search } from 'lucide-react';
+import { Shield, Search, Plus, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const createSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+});
 const editSchema = z.object({ name: z.string().min(2), email: z.string().email() });
 const pwSchema = z.object({ newPassword: z.string().min(8, 'Min 8 characters') });
+type CreateForm = z.infer<typeof createSchema>;
 type EditForm = z.infer<typeof editSchema>;
 type PwForm = z.infer<typeof pwSchema>;
 
@@ -27,6 +34,10 @@ export function UsersPage() {
   const [error, setError] = useState('');
   const debouncedSearch = useDebounce(search);
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [pwUser, setPwUser] = useState<User | null>(null);
@@ -34,6 +45,10 @@ export function UsersPage() {
   const [statusUser, setStatusUser] = useState<User | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
 
+  const { register: createReg, handleSubmit: createSub, formState: { errors: createErr }, reset: createReset } = useForm<CreateForm>({
+    resolver: zodResolver(createSchema),
+    defaultValues: { status: 'ACTIVE' },
+  });
   const { register: editReg, handleSubmit: editSub, formState: { errors: editErr }, reset: editReset, setValue } = useForm<EditForm>({ resolver: zodResolver(editSchema) });
   const { register: pwReg, handleSubmit: pwSub, formState: { errors: pwErr }, reset: pwReset } = useForm<PwForm>({ resolver: zodResolver(pwSchema) });
 
@@ -71,6 +86,24 @@ export function UsersPage() {
   };
 
   useEffect(() => { load(); }, [page, debouncedSearch, statusFilter]);
+
+  const handleCreate = async (data: CreateForm) => {
+    setCreateLoading(true);
+    try {
+      await usersApi.create(data);
+      toast.success('User created successfully');
+      setCreateOpen(false);
+      createReset();
+      load();
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Failed to create user');
+      toast.error(errorMsg);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
 
   const openEdit = (u: User) => {
     setEditUser(u);
@@ -129,8 +162,15 @@ export function UsersPage() {
       <div className="page-header flex items-center justify-between">
         <div>
           <h1 className="page-title">Users</h1>
-          <p className="page-subtitle">Admin user management — no user creation or deletion supported</p>
+          <p className="page-subtitle">Admin user management — manage users, credentials, and access permissions</p>
         </div>
+        <Button
+          variant="primary"
+          icon={<Plus className="w-4 h-4" />}
+          onClick={() => setCreateOpen(true)}
+        >
+          Add User
+        </Button>
       </div>
 
       <div className="card">
@@ -169,7 +209,7 @@ export function UsersPage() {
             ) : error ? (
               <tr><td colSpan={6}><ErrorState message={error} onRetry={load} /></td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={6}><EmptyState icon={<Shield className="w-12 h-12" />} title="No users found" /></td></tr>
+              <tr><td colSpan={6}><EmptyState icon={<Shield className="w-12 h-12" />} title="No users found" action={<Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setCreateOpen(true)}>Add First User</Button>} /></td></tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id}>
@@ -201,6 +241,63 @@ export function UsersPage() {
         </table>
         {!loading && totalPages > 1 && <Pagination page={page} totalPages={totalPages} total={total} limit={20} onPageChange={setPage} />}
       </div>
+
+      {/* Create User Modal */}
+      <Modal isOpen={createOpen} onClose={() => { setCreateOpen(false); createReset(); }} title="Create New Admin User">
+        <form onSubmit={createSub(handleCreate)} className="p-6 space-y-4">
+          <Input
+            id="create-name"
+            label="Full Name"
+            placeholder="e.g. John Doe"
+            error={createErr.name?.message}
+            {...createReg('name')}
+          />
+          <Input
+            id="create-email"
+            label="Email Address"
+            type="email"
+            placeholder="admin@example.com"
+            error={createErr.email?.message}
+            {...createReg('email')}
+          />
+          <div>
+            <div className="relative">
+              <Input
+                id="create-password"
+                label="Initial Password"
+                type={showCreatePassword ? 'text' : 'password'}
+                placeholder="Min 8 characters"
+                error={createErr.password?.message}
+                {...createReg('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCreatePassword(!showCreatePassword)}
+                className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 focus:outline-none"
+                tabIndex={-1}
+              >
+                {showCreatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Passwords are securely hashed before storage.</p>
+          </div>
+          <div>
+            <label className="form-label" htmlFor="create-status">Initial Status</label>
+            <select id="create-status" className="form-select" {...createReg('status')}>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" variant="primary" loading={createLoading} icon={<Plus className="w-4 h-4" />}>
+              Create User
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => { setCreateOpen(false); createReset(); }}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Edit Modal */}
       <Modal isOpen={!!editUser} onClose={() => { setEditUser(null); editReset(); }} title="Edit User">
