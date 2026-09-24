@@ -47,6 +47,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // ============================================================
+// SYSTEM USER GUARD (accessible only by system user)
+// ============================================================
+function SystemUserRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const isSys = Boolean(
+    user?.name?.toLowerCase().includes('system') ||
+    user?.email?.toLowerCase() === 'admin@boothcommand.com'
+  );
+
+  if (!isSys) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ============================================================
 // PUBLIC ROUTE GUARD (redirect to dashboard if already logged in)
 // ============================================================
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -126,7 +152,7 @@ function AppRoutes() {
         <Route path="/volunteers/:id" element={<VolunteerDetailPage />} />
 
         {/* Users */}
-        <Route path="/users" element={<UsersPage />} />
+        <Route path="/users" element={<SystemUserRoute><UsersPage /></SystemUserRoute>} />
 
         {/* Settings */}
         <Route path="/settings" element={<SettingsPage />} />

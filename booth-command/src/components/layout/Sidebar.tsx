@@ -5,6 +5,10 @@ import {
   UserCheck, BarChart3, FileText, Upload, Shield, Settings,
   ClipboardList, ChevronLeft, ChevronRight, Vote,
 } from 'lucide-react';
+import { useAuth } from '../../store/auth.context';
+
+const isSystemUser = (u?: { name?: string; email?: string } | null): boolean =>
+  Boolean(u?.name?.toLowerCase().includes('system') || u?.email?.toLowerCase() === 'admin@boothcommand.com');
 
 interface NavItem {
   to: string;
@@ -109,6 +113,16 @@ function SidebarItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { user } = useAuth();
+  const isSys = isSystemUser(user);
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.to === '/users') {
+      return isSys;
+    }
+    return true;
+  });
+
   return (
     <aside
       className={clsx(
@@ -134,7 +148,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <SidebarItem key={item.to} item={item} collapsed={collapsed} />
         ))}
       </nav>
