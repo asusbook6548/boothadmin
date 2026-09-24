@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { usersApi } from '../api/users.api';
 import type { User } from '../types';
 import { Button, EmptyState, ErrorState, Input, Pagination, Select } from '../components/ui';
@@ -10,6 +10,9 @@ import { z } from 'zod';
 import { useDebounce } from '../hooks/useDebounce';
 import { Shield, Search, Plus, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+export const isSystemUser = (u: { name?: string; email?: string }): boolean =>
+  Boolean(u.name?.toLowerCase().includes('system') || u.email?.toLowerCase() === 'admin@boothcommand.com');
 
 const createSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters'),
@@ -45,6 +48,15 @@ export function UsersPage() {
   const [statusUser, setStatusUser] = useState<User | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
 
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const aSys = isSystemUser(a) ? 1 : 0;
+      const bSys = isSystemUser(b) ? 1 : 0;
+      if (aSys !== bSys) return bSys - aSys;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [users]);
+
   const { register: createReg, handleSubmit: createSub, formState: { errors: createErr }, reset: createReset } = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { status: 'ACTIVE' },
@@ -65,10 +77,10 @@ export function UsersPage() {
         const list: User[] = Array.isArray(payload)
           ? (payload as User[])
           : Array.isArray(payload.data)
-          ? (payload.data as User[])
-          : Array.isArray(payload.users)
-          ? (payload.users as User[])
-          : [];
+            ? (payload.data as User[])
+            : Array.isArray(payload.users)
+              ? (payload.users as User[])
+              : [];
         const safeNum = (v: unknown, fallback: number): number =>
           typeof v === 'number' && !isNaN(v) ? v : fallback;
         const total = safeNum(payload.total, list.length);
@@ -77,7 +89,14 @@ export function UsersPage() {
           Math.max(1, Math.ceil(total / 20))
         );
 
-        setUsers(list);
+        const sortedList = [...list].sort((a, b) => {
+          const aSys = isSystemUser(a) ? 1 : 0;
+          const bSys = isSystemUser(b) ? 1 : 0;
+          if (aSys !== bSys) return bSys - aSys;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        setUsers(sortedList);
         setTotal(total);
         setTotalPages(totalPages);
       })
@@ -208,16 +227,16 @@ export function UsersPage() {
               ))
             ) : error ? (
               <tr><td colSpan={6}><ErrorState message={error} onRetry={load} /></td></tr>
-            ) : users.length === 0 ? (
+            ) : sortedUsers.length === 0 ? (
               <tr><td colSpan={6}><EmptyState icon={<Shield className="w-12 h-12" />} title="No users found" action={<Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setCreateOpen(true)}>Add First User</Button>} /></td></tr>
             ) : (
-              users.map((u) => (
+              sortedUsers.map((u) => (
                 <tr key={u.id}>
                   <td className="font-medium text-gray-900">
                     <div className="flex items-center gap-2">
                       <span>{u.name}</span>
-                      {(u.name.toLowerCase().includes('system') || u.email === 'admin@boothcommand.com') && (
-                        <span className="badge badge-amber text-xs font-semibold">System User</span>
+                      {isSystemUser(u) && (
+                        <span className="badge badge-amber text-sm bg-gray-200 font-semibold">System User</span>
                       )}
                     </div>
                   </td>
