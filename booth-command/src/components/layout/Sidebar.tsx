@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import {
   LayoutDashboard, Building2, Landmark, Tags,
   UserCheck, BarChart3, FileText, Upload, Shield, Settings,
-  ClipboardList, ChevronLeft, ChevronRight, Vote,
+  ClipboardList, ChevronLeft, ChevronRight, Vote, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../store/auth.context';
 
@@ -113,7 +113,7 @@ function SidebarItem({ item, collapsed }: { item: NavItem; collapsed: boolean })
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isSys = isSystemUser(user);
 
   const visibleNavItems = navItems.filter((item) => {
@@ -153,8 +153,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Collapse Toggle */}
-      <div className="border-t border-slate-800 p-2">
+      {/* Bottom Actions */}
+      <div className="border-t border-slate-800 p-2 space-y-1">
+        <button
+          onClick={logout}
+          className={clsx(
+            'w-full flex items-center p-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors',
+            collapsed ? 'justify-center' : 'gap-3 px-3'
+          )}
+          title="Sign Out"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+        </button>
+
         <button
           onClick={onToggle}
           className="w-full flex items-center justify-center p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
