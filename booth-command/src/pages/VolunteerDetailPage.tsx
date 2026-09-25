@@ -8,6 +8,7 @@ import { VolunteerStatusBadge } from '../components/shared/Badges';
 import { ConfirmDialog } from '../components/ui/Modal';
 import { ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 export function VolunteerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +25,7 @@ export function VolunteerDetailPage() {
     if (!id) return;
     volunteersApi.getOne(id)
       .then((r) => { setVolunteer(r.data); setSelectedBooth(r.data.boothId ?? ''); })
-      .catch(() => setError('Volunteer not found'))
+      .catch((err) => setError(getErrorMessage(err, 'Volunteer not found')))
       .finally(() => setLoading(false));
   };
 
@@ -44,8 +45,8 @@ export function VolunteerDetailPage() {
       toast.success('Volunteer status updated');
       setStatusConfirm(false);
       load();
-    } catch {
-      toast.error('Failed to update status');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update status'));
     } finally {
       setStatusLoading(false);
     }
@@ -63,8 +64,8 @@ export function VolunteerDetailPage() {
         toast.success('Booth unassigned');
       }
       load();
-    } catch {
-      toast.error('Failed to update booth assignment');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update booth assignment'));
     } finally {
       setAssignLoading(false);
     }

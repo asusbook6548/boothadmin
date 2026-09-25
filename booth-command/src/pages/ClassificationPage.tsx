@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 import { classificationApi } from '../api/classification.api';
 import { boothsApi } from '../api/booths.api';
 import type { ClassificationSummary, Voter, Booth, Classification } from '../types';
@@ -136,7 +137,7 @@ export function ClassificationPage() {
         setTotalPages(pages);
         setSelectedIds(new Set());
       })
-      .catch(() => setError('Failed to load voters'))
+      .catch((err) => setError(getErrorMessage(err, 'Failed to load voters')))
       .finally(() => setVoterLoading(false));
   }, [page, limit, debouncedSearch, classFilter, boothFilter]);
 
@@ -174,8 +175,8 @@ export function ClassificationPage() {
       setSelectedIds(new Set());
       loadVoters();
       loadSummary();
-    } catch {
-      toast.error('Bulk classification failed');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Bulk classification failed'));
     } finally {
       setBulkLoading(false);
     }
@@ -191,8 +192,8 @@ export function ClassificationPage() {
       setSingleVoter(null);
       loadVoters();
       loadSummary();
-    } catch {
-      toast.error('Failed to update classification');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update classification'));
     } finally {
       setSingleLoading(false);
     }

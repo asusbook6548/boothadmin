@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { useDebounce } from '../hooks/useDebounce';
 import { UserCheck, Search, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 const createSchema = z.object({
   name: z.string().min(2),
@@ -37,7 +38,7 @@ export function VolunteersPage() {
         const d = r.data;
         setVolunteers(Array.isArray(d) ? d : []);
       })
-      .catch(() => setError('Failed to load volunteers'))
+      .catch((err) => setError(getErrorMessage(err, 'Failed to load volunteers')))
       .finally(() => setLoading(false));
   };
 
@@ -55,8 +56,8 @@ export function VolunteersPage() {
       setCreateOpen(false);
       reset();
       load();
-    } catch {
-      toast.error('Failed to create volunteer');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to create volunteer'));
     } finally {
       setCreateLoading(false);
     }

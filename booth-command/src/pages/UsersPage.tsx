@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { useDebounce } from '../hooks/useDebounce';
 import { Shield, Search, Plus, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 export const isSystemUser = (u: { name?: string; email?: string }): boolean =>
   Boolean(u.name?.toLowerCase().includes('system') || u.email?.toLowerCase() === 'admin@boothcommand.com');
@@ -100,7 +101,7 @@ export function UsersPage() {
         setTotal(total);
         setTotalPages(totalPages);
       })
-      .catch(() => setError('Failed to load users'))
+      .catch((err) => setError(getErrorMessage(err, 'Failed to load users')))
       .finally(() => setLoading(false));
   };
 
@@ -115,10 +116,7 @@ export function UsersPage() {
       createReset();
       load();
     } catch (err: unknown) {
-      const errorMsg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Failed to create user');
-      toast.error(errorMsg);
+      toast.error(getErrorMessage(err, 'Failed to create user'));
     } finally {
       setCreateLoading(false);
     }
@@ -139,8 +137,8 @@ export function UsersPage() {
       setEditUser(null);
       editReset();
       load();
-    } catch {
-      toast.error('Failed to update user');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update user'));
     } finally {
       setEditLoading(false);
     }
@@ -154,8 +152,8 @@ export function UsersPage() {
       toast.success('Password updated successfully');
       setPwUser(null);
       pwReset();
-    } catch {
-      toast.error('Failed to change password');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to change password'));
     } finally {
       setPwLoading(false);
     }
@@ -169,8 +167,8 @@ export function UsersPage() {
       toast.success('User status updated');
       setStatusUser(null);
       load();
-    } catch {
-      toast.error('Failed to change status');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to change status'));
     } finally {
       setStatusLoading(false);
     }

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getErrorMessage } from '../utils/error';
 
 const API_BASE = 'http://localhost:5000';
 const TOKEN_KEY = 'bc_access_token';
@@ -38,21 +39,29 @@ client.interceptors.request.use(
 );
 
 // ============================================================
-// RESPONSE INTERCEPTOR — handle errors globally
+// RESPONSE INTERCEPTOR — handle errors globally & normalize messages
 // ============================================================
 
 client.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Normalize error message from backend
+    const properMessage = getErrorMessage(error);
+    if (error && typeof error === 'object') {
+      error.message = properMessage;
+    }
+
     if (error.response) {
       const status = error.response.status;
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
 
-      if (status === 401) {
+      if (status === 401 && !isLoginRequest) {
         // Clear auth and redirect to login
         clearToken();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
-      // 403, 404, 400, 422, 500 handled per-component using error.response.data
     }
     return Promise.reject(error);
   }

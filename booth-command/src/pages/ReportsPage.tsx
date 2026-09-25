@@ -9,6 +9,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { FileText, Search, Download, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 const REPORT_NAV = [
   { to: '/reports', label: 'Summary', exact: true },
@@ -185,8 +186,8 @@ export function VotersReportPage() {
     try {
       await reportsApi.exportVoters({ search: debouncedSearch || undefined, classification: classification as never || undefined, format });
       toast.success('Export downloaded', { id: 'export' });
-    } catch {
-      toast.error('Export failed', { id: 'export' });
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Export failed'), { id: 'export' });
     } finally {
       setExportLoading(false);
     }
@@ -324,8 +325,8 @@ function SimpleReport({ navLabel, fetchFn, exportFn, columns }: {
     try {
       await exportFn(format);
       toast.success('Export downloaded', { id: 'exp' });
-    } catch {
-      toast.error('Export failed', { id: 'exp' });
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Export failed'), { id: 'exp' });
     } finally {
       setExportLoading(false);
     }

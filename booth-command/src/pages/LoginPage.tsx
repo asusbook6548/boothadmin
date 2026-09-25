@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { useAuth } from '../store/auth.context';
 import { Vote, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button, Input } from '../components/ui';
+import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -30,16 +32,12 @@ export function LoginPage() {
     setIsLoading(true);
     try {
       await login(data);
+      toast.success('Welcome back!');
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { message?: string } } };
-      if (error.response?.status === 401) {
-        setServerError('Invalid email or password. Please try again.');
-      } else if (error.response?.status === 403) {
-        setServerError('Your account is inactive. Contact your administrator.');
-      } else {
-        setServerError(error.response?.data?.message ?? 'Unable to connect. Please try again.');
-      }
+      const msg = getErrorMessage(err, 'Unable to login. Please try again.');
+      setServerError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

@@ -5,6 +5,7 @@ import { Button, Spinner, ErrorState } from '../components/ui';
 import { ConfirmDialog } from '../components/ui/Modal';
 import { Settings, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../utils/error';
 
 interface FieldConfig {
   key: keyof Omit<SystemSettings, 'id' | 'createdAt' | 'updatedAt'>;
@@ -47,7 +48,7 @@ export function SettingsPage() {
         FIELDS.forEach((f) => { v[f.key] = (r.data as unknown as Record<string, number>)[f.key]; });
         setValues(v);
       })
-      .catch(() => setError('Failed to load settings'))
+      .catch((err) => setError(getErrorMessage(err, 'Failed to load settings')))
       .finally(() => setLoading(false));
   };
 
@@ -68,8 +69,8 @@ export function SettingsPage() {
       toast.success('Settings updated successfully');
       setConfirmOpen(false);
       load();
-    } catch {
-      toast.error('Failed to save settings');
+    } catch (apiErr) {
+      toast.error(getErrorMessage(apiErr, 'Failed to save settings'));
     } finally {
       setSaveLoading(false);
     }

@@ -6,6 +6,7 @@ import { Button } from '../components/ui';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { getErrorMessage } from '../utils/error';
 
 export function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -61,10 +62,9 @@ export function ImportPage() {
       setResult(res.data ?? res);
       toast.success('Import completed successfully');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      const msg = e.response?.data?.message ?? 'Import failed. Please check your file format.';
+      const msg = getErrorMessage(err, 'Import failed. Please check your file format.');
       setError(msg);
-      toast.error('Import failed');
+      toast.error(msg);
     } finally {
       setImporting(false);
     }
