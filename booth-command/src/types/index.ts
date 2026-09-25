@@ -324,3 +324,69 @@ export interface BoothAnalysisFilters {
   limit?: number;
   search?: string;
 }
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+
+export interface AuditLogUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface AuditLogVolunteer {
+  id: string;
+  name: string;
+  mobile: string;
+  status: string;
+}
+
+export interface AuditLogVoter {
+  id: string;
+  epic: string;
+  name: string;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  details?: Record<string, unknown> | null;
+  userId?: string | null;
+  volunteerId?: string | null;
+  voterId?: string | null;
+  user?: AuditLogUser | null;
+  volunteer?: AuditLogVolunteer | null;
+  voter?: AuditLogVoter | null;
+  createdAt: string;
+}
+
+export interface AuditLogFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  action?: string;
+  entity?: string;
+  userId?: string;
+  volunteerId?: string;
+  voterId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface AuditLogPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface AuditLogsResponse {
+  success: boolean;
+  message?: string;
+  data: AuditLog[];
+  pagination: AuditLogPagination;
+}

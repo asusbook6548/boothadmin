@@ -43,8 +43,18 @@ client.interceptors.request.use(
 // ============================================================
 
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(
+      `[Frontend API Response Success] ${response.config.method?.toUpperCase()} ${response.config.url} [${response.status}]:`,
+      response.data
+    );
+    return response;
+  },
   (error) => {
+    console.log(
+      `[Frontend API Response Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} [${error.response?.status}]:`,
+      error.response?.data || error.message
+    );
     // Normalize error message from backend
     const properMessage = getErrorMessage(error);
     if (error && typeof error === 'object') {
