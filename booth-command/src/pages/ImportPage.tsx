@@ -471,15 +471,27 @@ export function ImportPage() {
 
           </div>
 
-          <button
-            type="button"
-            onClick={handleDownloadSample}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors shadow-xs cursor-pointer"
-          >
-            <FileDown className="w-4 h-4 text-indigo-600" />
-            Download 10-Record Sample
-          </button>
+          <div className="flex flex-col sm:items-end gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleDownloadSample}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold shadow-sm hover:shadow-md ring-2 ring-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <FileDown className="w-4 h-4 text-white" />
+              Download 10-Record Sample
+            </button>
+          </div>
 
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-indigo-700 flex-shrink-0">
+            <Info className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+            <span>Sample Data Notice:</span>
+          </div>
+          <span className="text-gray-500">
+            The downloaded file contains 10 completely synthetic voter records for testing the import workflow. It does not contain real voter data.
+          </span>
         </div>
       </div>
 
