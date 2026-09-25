@@ -67,53 +67,140 @@ export function DashboardPage() {
   const load = () => {
     setLoading(true);
     setError('');
-    analyticsApi.getOverview()
-      .then((res) => {
-        // Normalize: backend may use different field names or omit sub-fields
-        const raw = res.data as unknown as Record<string, unknown>;
-        const cls = (raw.classification ?? {}) as Record<string, { count?: number; percentage?: number }>;
-        const ver = (raw.verification ?? {}) as Record<string, { count?: number; percentage?: number }>;
-        const bth = (raw.booths ?? {}) as Record<string, number>;
 
-        const safeNum = (v: unknown): number => (typeof v === 'number' ? v : 0);
-        const safeStat = (obj: Record<string, { count?: number; percentage?: number }>, key: string) => ({
-          count: safeNum(obj[key]?.count),
-          percentage: safeNum(obj[key]?.percentage),
-        });
+    // Fetch overview and booth analysis counts in parallel
+    Promise.allSettled([
+      analyticsApi.getOverview(),
+      analyticsApi.getStrongBooths({ limit: 1 }),
+      analyticsApi.getWeakBooths({ limit: 1 }),
+      analyticsApi.getOpportunityBooths({ limit: 1 }),
+      analyticsApi.getConfidenceBooths({ limit: 1 }),
+    ])
+      .then(([overviewResult, strongResult, weakResult, oppResult, confResult]) => {
+
+        if (overviewResult.status === 'rejected') {
+          console.error('[DashboardPage] getOverview failed:', overviewResult.reason);
+          console.groupEnd();
+          setError('Failed to load dashboard data');
+          return;
+        }
+
+        const res = overviewResult.value;
+           // Normalize: backend may use nested objects (raw.voters, raw.booths, raw.classification)
+        const raw = (res?.data ?? {}) as unknown as Record<string, unknown>;
+        const rawVoters = (raw.voters ?? {}) as Record<string, unknown>;
+        const rawVer = (raw.verification ?? {}) as Record<string, unknown>;
+        const rawCls = (raw.classification ?? {}) as Record<string, unknown>;
+        const rawPercentages = (rawCls.percentages ?? {}) as Record<string, unknown>;
+        const rawBooths = (raw.booths ?? {}) as Record<string, unknown>;
+
+        const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
+
+        const totalVoters = safeNum(raw.totalVoters ?? rawVoters.total ?? raw.total);
+
+        // Helper to extract category count and percentage whether it's a number or object
+        const extractCategory = (key: string, unclassifiedKey?: boolean) => {
+          const val = rawCls[key];
+          let count = 0;
+          let pct = 0;
+
+          if (typeof val === 'number') {
+            count = val;
+            pct = safeNum(rawPercentages[key]);
+          } else if (val && typeof val === 'object') {
+            const o = val as Record<string, unknown>;
+            count = safeNum(o.count);
+            pct = safeNum(o.percentage);
+          } else if (unclassifiedKey) {
+            count = safeNum(raw.unclassifiedVoters ?? rawVoters.unclassified);
+          }
+
+          if (pct === 0 && totalVoters > 0 && count > 0) {
+            pct = Number(((count / totalVoters) * 100).toFixed(1));
+          }
+
+          return { count, percentage: pct };
+        };
+
+        // Extract verification
+        const extractVer = (key: 'verified' | 'unverified') => {
+          const val = rawVer[key];
+          let count = 0;
+          let pct = 0;
+
+          if (typeof val === 'number') {
+            count = val;
+            pct = key === 'verified' && typeof rawVer.verifiedPercentage === 'number'
+              ? rawVer.verifiedPercentage
+              : 0;
+          } else if (val && typeof val === 'object') {
+            const o = val as Record<string, unknown>;
+            count = safeNum(o.count);
+            pct = safeNum(o.percentage);
+          } else if (key === 'verified') {
+            count = safeNum(raw.verifiedVoters);
+          } else {
+            count = safeNum(raw.unverifiedVoters);
+          }
+
+          if (pct === 0 && totalVoters > 0 && count > 0) {
+            pct = Number(((count / totalVoters) * 100).toFixed(1));
+          }
+
+          return { count, percentage: pct };
+        };
+
+        // Booth counts
+        const strongTotal = strongResult.status === 'fulfilled'
+          ? safeNum((strongResult.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (strongResult.value as unknown as { total?: number })?.total)
+          : 0;
+        const weakTotal = weakResult.status === 'fulfilled'
+          ? safeNum((weakResult.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (weakResult.value as unknown as { total?: number })?.total)
+          : 0;
+        const oppTotal = oppResult.status === 'fulfilled'
+          ? safeNum((oppResult.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (oppResult.value as unknown as { total?: number })?.total)
+          : 0;
+        const confTotal = confResult.status === 'fulfilled'
+          ? safeNum((confResult.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (confResult.value as unknown as { total?: number })?.total)
+          : 0;
 
         const normalized: OverviewAnalytics = {
-          totalVoters: safeNum(raw.totalVoters),
-          verifiedVoters: safeNum(raw.verifiedVoters),
-          unverifiedVoters: safeNum(raw.unverifiedVoters),
-          classifiedVoters: safeNum(raw.classifiedVoters),
-          unclassifiedVoters: safeNum(raw.unclassifiedVoters),
-          totalBooths: safeNum(raw.totalBooths),
-          totalVolunteers: safeNum(raw.totalVolunteers),
+          totalVoters,
+          verifiedVoters: safeNum(raw.verifiedVoters ?? rawVer.verified),
+          unverifiedVoters: safeNum(raw.unverifiedVoters ?? rawVer.unverified),
+          classifiedVoters: safeNum(raw.classifiedVoters ?? rawVoters.classified),
+          unclassifiedVoters: safeNum(raw.unclassifiedVoters ?? rawVoters.unclassified),
+          totalBooths: safeNum(raw.totalBooths ?? rawBooths.total),
+          totalVolunteers: safeNum(raw.totalVolunteers ?? rawBooths.assigned),
           classification: {
-            green: safeStat(cls, 'green'),
-            yellow: safeStat(cls, 'yellow'),
-            red: safeStat(cls, 'red'),
-            black: safeStat(cls, 'black'),
-            // backend may call it 'none', 'unclassified', or missing
-            unclassified: safeStat(cls, 'unclassified')
-              ?? safeStat(cls, 'none')
-              ?? { count: 0, percentage: 0 },
+            green: extractCategory('green'),
+            yellow: extractCategory('yellow'),
+            red: extractCategory('red'),
+            black: extractCategory('black'),
+            unclassified: extractCategory('unclassified', true),
           },
           verification: {
-            verified: safeStat(ver, 'verified'),
-            unverified: safeStat(ver, 'unverified'),
+            verified: extractVer('verified'),
+            unverified: extractVer('unverified'),
           },
           booths: {
-            total: safeNum(bth.total),
-            strong: safeNum(bth.strong),
-            weak: safeNum(bth.weak),
-            opportunity: safeNum(bth.opportunity),
-            highConfidence: safeNum(bth.highConfidence),
+            total: safeNum(rawBooths.total ?? raw.totalBooths),
+            strong: safeNum(rawBooths.strong) || strongTotal,
+            weak: safeNum(rawBooths.weak) || weakTotal,
+            opportunity: safeNum(rawBooths.opportunity) || oppTotal,
+            highConfidence: safeNum(rawBooths.highConfidence) || confTotal,
           },
         };
+
+        console.log('[DashboardPage] Normalized Data for Rendering:', normalized);
+        console.groupEnd();
+
         setData(normalized);
       })
-      .catch(() => setError('Failed to load dashboard data'))
+      .catch((err) => {
+        console.error('[DashboardPage] Unexpected error in load():', err);
+        setError('Failed to load dashboard data');
+      })
       .finally(() => setLoading(false));
   };
 
