@@ -66,13 +66,14 @@ export function AnalyticsPage() {
 
     Promise.allSettled([
       analyticsApi.getOverview(),
+      analyticsApi.getBooths({ limit: 500 }),
       analyticsApi.getClassification(),
       analyticsApi.getVerification(),
       analyticsApi.getStrongBooths({ limit: 1 }),
       analyticsApi.getWeakBooths({ limit: 1 }),
       analyticsApi.getOpportunityBooths({ limit: 1 }),
       analyticsApi.getConfidenceBooths({ limit: 1 }),
-    ]).then(([ovRes, clRes, vrRes, strongRes, weakRes, oppRes, confRes]) => {
+    ]).then(([ovRes, allBoothsRes, clRes, vrRes, strongRes, weakRes, oppRes, confRes]) => {
       // 1. Normalize overview
       const ovVal = ovRes.status === 'fulfilled' ? ovRes.value : null;
       const ovObj = ovVal as unknown as Record<string, unknown>;
@@ -137,18 +138,52 @@ export function AnalyticsPage() {
         return { count, percentage: pct };
       };
 
-      const strongTotal = strongRes.status === 'fulfilled'
-        ? safeNum((strongRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (strongRes.value as unknown as { total?: number })?.total)
-        : 0;
-      const weakTotal = weakRes.status === 'fulfilled'
-        ? safeNum((weakRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (weakRes.value as unknown as { total?: number })?.total)
-        : 0;
-      const oppTotal = oppRes.status === 'fulfilled'
-        ? safeNum((oppRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (oppRes.value as unknown as { total?: number })?.total)
-        : 0;
-      const confTotal = confRes.status === 'fulfilled'
-        ? safeNum((confRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (confRes.value as unknown as { total?: number })?.total)
-        : 0;
+      // Direct computation from getBooths list (most reliable across all active booths)
+      let strongFromList: number | null = null;
+      let weakFromList: number | null = null;
+      let oppFromList: number | null = null;
+      let confFromList: number | null = null;
+
+      if (allBoothsRes.status === 'fulfilled') {
+        const bVal = allBoothsRes.value as Record<string, unknown> | null;
+        const bData = (bVal?.data ?? bVal) as Record<string, unknown> | null;
+        const bList = (Array.isArray(bData?.booths) ? bData.booths : Array.isArray(bVal?.booths) ? bVal.booths : []) as Array<Record<string, unknown>>;
+
+        if (bList.length > 0) {
+          strongFromList = bList.filter((b) => {
+            const a = (b.analysis ?? {}) as Record<string, unknown>;
+            return (a.greenStrength ?? b.strength) === 'STRONG';
+          }).length;
+
+          weakFromList = bList.filter((b) => {
+            const a = (b.analysis ?? {}) as Record<string, unknown>;
+            return (a.greenStrength ?? b.strength) === 'WEAK';
+          }).length;
+
+          oppFromList = bList.filter((b) => {
+            const a = (b.analysis ?? {}) as Record<string, unknown>;
+            return (a.yellowOpportunity ?? b.opportunity) === 'HIGH';
+          }).length;
+
+          confFromList = bList.filter((b) => {
+            const a = (b.analysis ?? {}) as Record<string, unknown>;
+            return (a.dataConfidence ?? b.confidence) === 'HIGH';
+          }).length;
+        }
+      }
+
+      const extractBoothCount = (res: PromiseSettledResult<unknown>) => {
+        if (res.status !== 'fulfilled') return 0;
+        const val = res.value as Record<string, unknown> | null;
+        const innerData = (val?.data ?? val) as Record<string, unknown> | null;
+        const pag = (innerData?.pagination ?? val?.pagination) as Record<string, unknown> | null;
+        return safeNum(pag?.total ?? innerData?.total ?? val?.total);
+      };
+
+      const strongTotal = strongFromList ?? (typeof rawBooths.strong === 'number' ? rawBooths.strong : extractBoothCount(strongRes));
+      const weakTotal = weakFromList ?? (typeof rawBooths.weak === 'number' ? rawBooths.weak : extractBoothCount(weakRes));
+      const oppTotal = oppFromList ?? (typeof rawBooths.opportunity === 'number' ? rawBooths.opportunity : extractBoothCount(oppRes));
+      const confTotal = confFromList ?? (typeof rawBooths.highConfidence === 'number' ? rawBooths.highConfidence : extractBoothCount(confRes));
 
       const normalizedOverview: OverviewAnalytics = {
         totalVoters,
@@ -171,10 +206,10 @@ export function AnalyticsPage() {
         },
         booths: {
           total: safeNum(rawBooths.total ?? rawOv.totalBooths),
-          strong: safeNum(rawBooths.strong) || strongTotal,
-          weak: safeNum(rawBooths.weak) || weakTotal,
-          opportunity: safeNum(rawBooths.opportunity) || oppTotal,
-          highConfidence: safeNum(rawBooths.highConfidence) || confTotal,
+          strong: strongTotal,
+          weak: weakTotal,
+          opportunity: oppTotal,
+          highConfidence: confTotal,
         },
       };
       setOverview(normalizedOverview);
