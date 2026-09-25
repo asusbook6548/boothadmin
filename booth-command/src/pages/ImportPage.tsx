@@ -93,10 +93,15 @@ export function ImportPage() {
   );
 
   const handleImport = async () => {
-    if (!file || !assemblyId) {
-      toast.error(
-        'Please select a file and a target assembly'
-      );
+    const targetAssemblyId = assemblyId || assemblies[0]?.id;
+
+    if (!file) {
+      toast.error('Please select a voter file to import');
+      return;
+    }
+
+    if (!targetAssemblyId) {
+      toast.error('Target assembly not found. Please refresh the page.');
       return;
     }
 
@@ -107,7 +112,7 @@ export function ImportPage() {
     try {
       const res = await votersApi.import(
         file,
-        assemblyId
+        targetAssemblyId
       );
 
       setResult(res.data ?? res);
@@ -446,11 +451,19 @@ export function ImportPage() {
             </div>
 
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                Import Voter Data
-              </h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  Import Voter Data
+                </h1>
+                {selectedAssembly && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <Layers className="w-3.5 h-3.5" />
+                    Assembly: #{selectedAssembly.assemblyNumber ?? (selectedAssembly as unknown as { number?: string | number }).number} — {selectedAssembly.assemblyName ?? (selectedAssembly as unknown as { name?: string }).name}
+                  </span>
+                )}
+              </div>
 
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 mt-1">
                 Bulk import or update voter lists from Excel
                 (.xlsx, .xls) and CSV electoral rolls
               </p>
@@ -476,90 +489,6 @@ export function ImportPage() {
         {/* Left */}
         <div className="lg:col-span-7 space-y-6">
 
-          {/* Assembly */}
-          <div className="card p-6 space-y-4">
-
-            <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-              <Layers className="w-5 h-5 text-indigo-600" />
-
-              <h3 className="font-semibold text-gray-900">
-                Target Constituency
-              </h3>
-            </div>
-
-            <div>
-
-              <label
-                className="form-label"
-                htmlFor="assemblySelect"
-              >
-                Select Assembly Constituency{' '}
-                <span className="text-red-500">*</span>
-              </label>
-
-              <select
-                id="assemblySelect"
-                className="form-select text-sm py-2.5"
-                value={assemblyId}
-                onChange={(e) =>
-                  setAssemblyId(e.target.value)
-                }
-              >
-
-                <option value="">
-                  Select assembly constituency...
-                </option>
-
-                {assemblies.map((a) => (
-                  <option
-                    key={a.id}
-                    value={a.id}
-                  >
-                    #
-                    {a.assemblyNumber ??
-                      (
-                        a as unknown as {
-                          number?: string | number;
-                        }
-                      ).number}
-                    {' — '}
-                    {a.assemblyName ??
-                      (
-                        a as unknown as {
-                          name?: string;
-                        }
-                      ).name}
-                    {a.isActive ? ' (Active)' : ''}
-                  </option>
-                ))}
-
-              </select>
-
-              {selectedAssembly && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
-
-                  <span className="font-medium text-gray-700">
-                    Selected:
-                  </span>
-
-                  <span>
-                    District:{' '}
-                    {selectedAssembly.district || '—'}
-                  </span>
-
-                  <span>•</span>
-
-                  <span>
-                    Election Year:{' '}
-                    {selectedAssembly.electionYear || '—'}
-                  </span>
-
-                </div>
-              )}
-
-            </div>
-          </div>
-
           {/* Upload */}
           <div className="card p-6 space-y-4">
 
@@ -578,6 +507,22 @@ export function ImportPage() {
               </span>
 
             </div>
+
+            {selectedAssembly && (
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-lg bg-indigo-50/70 border border-indigo-100 text-xs">
+                <div className="flex items-center gap-2 text-indigo-900 font-medium">
+                  <Layers className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                  <span>
+                    Target Assembly: <strong>#{selectedAssembly.assemblyNumber ?? (selectedAssembly as unknown as { number?: string | number }).number} — {selectedAssembly.assemblyName ?? (selectedAssembly as unknown as { name?: string }).name}</strong>
+                  </span>
+                </div>
+                {selectedAssembly.district && (
+                  <span className="text-indigo-600 font-medium">
+                    District: {selectedAssembly.district}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div
               className={clsx(
@@ -706,7 +651,6 @@ export function ImportPage() {
                 loading={importing}
                 disabled={
                   !file ||
-                  !assemblyId ||
                   importing
                 }
                 onClick={handleImport}
