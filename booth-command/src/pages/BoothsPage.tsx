@@ -83,7 +83,7 @@ export function BoothsPage() {
               booths.map((b) => (
                 <tr key={b.id}>
                   <td className="font-medium text-gray-900">#{b.boothNumber}</td>
-                  <td className="font-medium text-gray-900">{b.boothName}</td>
+                  <td className="font-medium text-gray-900">{b.boothName ?? (b as unknown as { name?: string }).name}</td>
                   <td className="text-gray-600">{b.village ?? '—'}</td>
                   <td className="text-gray-600">{b.volunteer?.name ?? <span className="text-gray-400 italic text-xs">Unassigned</span>}</td>
                   <td className="text-gray-600">{b._count?.voters?.toLocaleString() ?? '—'}</td>

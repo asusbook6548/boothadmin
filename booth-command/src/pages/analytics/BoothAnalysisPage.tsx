@@ -15,6 +15,32 @@ const CONFIG: Record<AnalysisType, { title: string; subtitle: string; fetch: typ
   confidence: { title: 'High Confidence Booths', subtitle: 'Booths with high verified voter data', fetch: analyticsApi.getConfidenceBooths.bind(analyticsApi), accentClass: 'border-l-4 border-indigo-500' },
 };
 
+function mapBoothRow(raw: unknown): BoothAnalyticsRow {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const b = (r.booth && typeof r.booth === 'object' ? r.booth : r) as Record<string, unknown>;
+  const v = (r.voters && typeof r.voters === 'object' ? r.voters : r) as Record<string, unknown>;
+  const p = (r.percentages && typeof r.percentages === 'object' ? r.percentages : r) as Record<string, unknown>;
+  const a = (r.analysis && typeof r.analysis === 'object' ? r.analysis : r) as Record<string, unknown>;
+
+  const safeNum = (val: unknown): number => (typeof val === 'number' && !isNaN(val) ? val : 0);
+
+  return {
+    id: String(b.id ?? r.id ?? ''),
+    boothNumber: (b.boothNumber ?? r.boothNumber ?? '') as number,
+    boothName: String(b.name ?? b.boothName ?? r.boothName ?? r.name ?? '—'),
+    totalVoters: safeNum(v.total ?? r.totalVoters ?? r.total),
+    greenPercent: safeNum(p.green ?? r.greenPercent),
+    yellowPercent: safeNum(p.yellow ?? r.yellowPercent),
+    redPercent: safeNum(p.red ?? r.redPercent),
+    blackPercent: safeNum(p.black ?? r.blackPercent),
+    unclassifiedPercent: safeNum(p.unclassified ?? r.unclassifiedPercent),
+    verifiedPercent: safeNum(p.verified ?? r.verifiedPercent),
+    strength: String(a.greenStrength ?? r.strength ?? '—'),
+    opportunity: String(a.yellowOpportunity ?? r.opportunity ?? '—'),
+    confidence: String(a.dataConfidence ?? r.confidence ?? '—'),
+  };
+}
+
 export function BoothAnalysisPage({ type }: { type: AnalysisType }) {
   const { title, subtitle, fetch, accentClass } = CONFIG[type];
   const [booths, setBooths] = useState<BoothAnalyticsRow[]>([]);
@@ -31,12 +57,20 @@ export function BoothAnalysisPage({ type }: { type: AnalysisType }) {
     setError('');
     fetch({ page, limit: 20, search: debouncedSearch || undefined })
       .then((r) => {
-        const d = r.data as unknown as { booths: BoothAnalyticsRow[]; total: number; totalPages: number };
-        setBooths(d.booths ?? []);
-        setTotal(d.total ?? 0);
-        setTotalPages(d.totalPages ?? 1);
+        const raw = ((r as unknown as { data?: unknown })?.data ?? r) as Record<string, unknown>;
+        const rawList = (Array.isArray(raw) ? raw : (raw.booths ?? raw.data ?? [])) as unknown[];
+        const list = rawList.map(mapBoothRow);
+        const safeNum = (val: unknown): number => (typeof val === 'number' && !isNaN(val) ? val : 0);
+        const totalCount = typeof raw.total === 'number' ? raw.total : (safeNum((raw.pagination as Record<string, unknown>)?.total) || list.length);
+        const totalP = typeof raw.totalPages === 'number' ? raw.totalPages : (safeNum((raw.pagination as Record<string, unknown>)?.totalPages) || Math.max(1, Math.ceil(totalCount / 20)));
+        setBooths(list);
+        setTotal(totalCount);
+        setTotalPages(totalP);
       })
-      .catch(() => setError(`Failed to load ${title.toLowerCase()}`))
+      .catch((err) => {
+        console.error(`[BoothAnalysisPage] Failed to load ${title.toLowerCase()}:`, err);
+        setError(`Failed to load ${title.toLowerCase()}`);
+      })
       .finally(() => setLoading(false));
   };
 

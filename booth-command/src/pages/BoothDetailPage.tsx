@@ -27,8 +27,46 @@ export function BoothDetailPage() {
       boothsApi.getOne(id),
       analyticsApi.getBoothById(id).catch(() => ({ data: null })),
     ]).then(([boothRes, analyticsRes]) => {
-      setBooth(boothRes.data);
-      setAnalytics(analyticsRes.data as SingleBoothAnalytics | null);
+      const rawBoothObj = (boothRes.data as unknown as { booth?: Booth })?.booth ?? boothRes.data;
+      if (rawBoothObj) {
+        if (!rawBoothObj.boothName && (rawBoothObj as unknown as { name?: string }).name) {
+          rawBoothObj.boothName = (rawBoothObj as unknown as { name: string }).name;
+        }
+      }
+      setBooth(rawBoothObj);
+
+      const rawAnObj = ((analyticsRes as unknown as { data?: unknown })?.data) as Record<string, unknown> | null;
+      const rawAn = (rawAnObj?.booth ?? rawAnObj) as Record<string, unknown> | null;
+      if (rawAn) {
+        const v = (rawAn.voters ?? {}) as Record<string, number>;
+        const p = (rawAn.percentages ?? {}) as Record<string, number>;
+        const a = (rawAn.analysis ?? {}) as Record<string, string>;
+        const safeNum = (val: unknown): number => (typeof val === 'number' && !isNaN(val) ? val : 0);
+
+        const normalizedAn: SingleBoothAnalytics = {
+          booth: rawBoothObj,
+          totalVoters: safeNum(v.total ?? rawAn.totalVoters),
+          greenCount: safeNum(v.green ?? rawAn.greenCount),
+          yellowCount: safeNum(v.yellow ?? rawAn.yellowCount),
+          redCount: safeNum(v.red ?? rawAn.redCount),
+          blackCount: safeNum(v.black ?? rawAn.blackCount),
+          unclassifiedCount: safeNum(v.unclassified ?? rawAn.unclassifiedCount),
+          greenPercent: safeNum(p.green ?? rawAn.greenPercent),
+          yellowPercent: safeNum(p.yellow ?? rawAn.yellowPercent),
+          redPercent: safeNum(p.red ?? rawAn.redPercent),
+          blackPercent: safeNum(p.black ?? rawAn.blackPercent),
+          unclassifiedPercent: safeNum(p.unclassified ?? rawAn.unclassifiedPercent),
+          verifiedCount: safeNum(v.verified ?? rawAn.verifiedCount),
+          unverifiedCount: safeNum(v.unverified ?? rawAn.unverifiedCount),
+          verifiedPercent: safeNum(p.verified ?? rawAn.verifiedPercent),
+          strength: String(a.greenStrength ?? rawAn.strength ?? '—'),
+          opportunity: String(a.yellowOpportunity ?? rawAn.opportunity ?? '—'),
+          confidence: String(a.dataConfidence ?? rawAn.confidence ?? '—'),
+        };
+        setAnalytics(normalizedAn);
+      } else {
+        setAnalytics(null);
+      }
     }).catch(() => setError('Failed to load booth')).finally(() => setLoading(false));
   }, [id]);
 
@@ -37,10 +75,13 @@ export function BoothDetailPage() {
     setVoterLoading(true);
     votersApi.getAll({ boothId: id, page: voterPage, limit: 20 })
       .then((res) => {
-        const d = res.data as unknown as { voters: Voter[]; total: number; totalPages: number };
-        setVoters(d.voters ?? []);
-        setVoterTotal(d.total ?? 0);
-        setVoterTotalPages(d.totalPages ?? 1);
+        const raw = (res.data as unknown as { voters?: Voter[]; data?: Voter[]; total?: number; totalPages?: number; pagination?: { total: number; totalPages: number } }) ?? {};
+        const list = raw.voters ?? raw.data ?? (Array.isArray(raw) ? raw : []);
+        const total = typeof raw.total === 'number' ? raw.total : (raw.pagination?.total ?? list.length);
+        const totalPages = typeof raw.totalPages === 'number' ? raw.totalPages : (raw.pagination?.totalPages ?? Math.max(1, Math.ceil(total / 20)));
+        setVoters(list);
+        setVoterTotal(total);
+        setVoterTotalPages(totalPages);
       })
       .finally(() => setVoterLoading(false));
   }, [id, voterPage]);
@@ -55,7 +96,7 @@ export function BoothDetailPage() {
           <ChevronLeft className="w-4 h-4" /> Back to Booths
         </Link>
         <div className="flex items-center gap-3">
-          <h1 className="page-title">Booth #{booth.boothNumber} — {booth.boothName}</h1>
+          <h1 className="page-title">Booth #{booth.boothNumber} — {booth.boothName ?? (booth as unknown as { name?: string }).name}</h1>
           <BoothStatusBadge value={booth.status} />
         </div>
       </div>

@@ -19,6 +19,8 @@ const PIE_COLORS: Record<string, string> = {
   GREEN: '#10b981', YELLOW: '#f59e0b', RED: '#ef4444', BLACK: '#1e293b', Unclassified: '#d1d5db',
 };
 
+const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
+
 export function AnalyticsPage() {
   const location = useLocation();
   const [overview, setOverview] = useState<OverviewAnalytics | null>(null);
@@ -35,63 +37,155 @@ export function AnalyticsPage() {
 
   const tab = location.pathname;
 
+  function mapBoothRow(raw: unknown): BoothAnalyticsRow {
+    const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const b = (r.booth && typeof r.booth === 'object' ? r.booth : r) as Record<string, unknown>;
+    const v = (r.voters && typeof r.voters === 'object' ? r.voters : r) as Record<string, unknown>;
+    const p = (r.percentages && typeof r.percentages === 'object' ? r.percentages : r) as Record<string, unknown>;
+    const a = (r.analysis && typeof r.analysis === 'object' ? r.analysis : r) as Record<string, unknown>;
+
+    return {
+      id: String(b.id ?? r.id ?? ''),
+      boothNumber: (b.boothNumber ?? r.boothNumber ?? '') as number,
+      boothName: String(b.name ?? b.boothName ?? r.boothName ?? r.name ?? '—'),
+      totalVoters: safeNum(v.total ?? r.totalVoters ?? r.total),
+      greenPercent: safeNum(p.green ?? r.greenPercent),
+      yellowPercent: safeNum(p.yellow ?? r.yellowPercent),
+      redPercent: safeNum(p.red ?? r.redPercent),
+      blackPercent: safeNum(p.black ?? r.blackPercent),
+      unclassifiedPercent: safeNum(p.unclassified ?? r.unclassifiedPercent),
+      verifiedPercent: safeNum(p.verified ?? r.verifiedPercent),
+      strength: String(a.greenStrength ?? r.strength ?? '—'),
+      opportunity: String(a.yellowOpportunity ?? r.opportunity ?? '—'),
+      confidence: String(a.dataConfidence ?? r.confidence ?? '—'),
+    };
+  }
+
   useEffect(() => {
     setLoading(true);
-    const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
 
-    Promise.all([
+    Promise.allSettled([
       analyticsApi.getOverview(),
       analyticsApi.getClassification(),
       analyticsApi.getVerification(),
-    ]).then(([ovRes, clRes, vrRes]) => {
+      analyticsApi.getStrongBooths({ limit: 1 }),
+      analyticsApi.getWeakBooths({ limit: 1 }),
+      analyticsApi.getOpportunityBooths({ limit: 1 }),
+      analyticsApi.getConfidenceBooths({ limit: 1 }),
+    ]).then(([ovRes, clRes, vrRes, strongRes, weakRes, oppRes, confRes]) => {
       // 1. Normalize overview
-      const ovObj = ovRes as unknown as Record<string, unknown>;
+      const ovVal = ovRes.status === 'fulfilled' ? ovRes.value : null;
+      const ovObj = ovVal as unknown as Record<string, unknown>;
       const rawOv = (ovObj && typeof ovObj === 'object' && ovObj.data && typeof ovObj.data === 'object')
         ? ovObj.data as Record<string, unknown>
         : ovObj ?? {};
-      const cls = (rawOv.classification ?? {}) as Record<string, { count?: number; percentage?: number }>;
-      const ver = (rawOv.verification ?? {}) as Record<string, { count?: number; percentage?: number }>;
-      const bth = (rawOv.booths ?? {}) as Record<string, number>;
-      const safeStat = (obj: Record<string, { count?: number; percentage?: number }>, key: string) => ({
-        count: safeNum(obj[key]?.count),
-        percentage: safeNum(obj[key]?.percentage),
-      });
+      const rawVoters = (rawOv.voters ?? {}) as Record<string, unknown>;
+      const rawVer = (rawOv.verification ?? {}) as Record<string, unknown>;
+      const rawCls = (rawOv.classification ?? {}) as Record<string, unknown>;
+      const rawPercentages = (rawCls.percentages ?? {}) as Record<string, unknown>;
+      const rawBooths = (rawOv.booths ?? {}) as Record<string, unknown>;
+
+      const totalVoters = safeNum(rawOv.totalVoters ?? rawVoters.total ?? rawOv.total);
+
+      const extractCategory = (key: string, unclassifiedKey?: boolean) => {
+        const val = rawCls[key];
+        let count = 0;
+        let pct = 0;
+
+        if (typeof val === 'number') {
+          count = val;
+          pct = safeNum(rawPercentages[key]);
+        } else if (val && typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          count = safeNum(o.count);
+          pct = safeNum(o.percentage);
+        } else if (unclassifiedKey) {
+          count = safeNum(rawOv.unclassifiedVoters ?? rawVoters.unclassified);
+        }
+
+        if (pct === 0 && totalVoters > 0 && count > 0) {
+          pct = Number(((count / totalVoters) * 100).toFixed(1));
+        }
+
+        return { count, percentage: pct };
+      };
+
+      const extractVer = (key: 'verified' | 'unverified') => {
+        const val = rawVer[key];
+        let count = 0;
+        let pct = 0;
+
+        if (typeof val === 'number') {
+          count = val;
+          pct = key === 'verified' && typeof rawVer.verifiedPercentage === 'number'
+            ? rawVer.verifiedPercentage
+            : 0;
+        } else if (val && typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          count = safeNum(o.count);
+          pct = safeNum(o.percentage);
+        } else if (key === 'verified') {
+          count = safeNum(rawOv.verifiedVoters);
+        } else {
+          count = safeNum(rawOv.unverifiedVoters);
+        }
+
+        if (pct === 0 && totalVoters > 0 && count > 0) {
+          pct = Number(((count / totalVoters) * 100).toFixed(1));
+        }
+
+        return { count, percentage: pct };
+      };
+
+      const strongTotal = strongRes.status === 'fulfilled'
+        ? safeNum((strongRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (strongRes.value as unknown as { total?: number })?.total)
+        : 0;
+      const weakTotal = weakRes.status === 'fulfilled'
+        ? safeNum((weakRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (weakRes.value as unknown as { total?: number })?.total)
+        : 0;
+      const oppTotal = oppRes.status === 'fulfilled'
+        ? safeNum((oppRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (oppRes.value as unknown as { total?: number })?.total)
+        : 0;
+      const confTotal = confRes.status === 'fulfilled'
+        ? safeNum((confRes.value as unknown as { pagination?: { total?: number }; total?: number })?.pagination?.total ?? (confRes.value as unknown as { total?: number })?.total)
+        : 0;
 
       const normalizedOverview: OverviewAnalytics = {
-        totalVoters: safeNum(rawOv.totalVoters),
-        verifiedVoters: safeNum(rawOv.verifiedVoters),
-        unverifiedVoters: safeNum(rawOv.unverifiedVoters),
-        classifiedVoters: safeNum(rawOv.classifiedVoters),
-        unclassifiedVoters: safeNum(rawOv.unclassifiedVoters),
-        totalBooths: safeNum(rawOv.totalBooths),
-        totalVolunteers: safeNum(rawOv.totalVolunteers),
+        totalVoters,
+        verifiedVoters: safeNum(rawOv.verifiedVoters ?? rawVer.verified),
+        unverifiedVoters: safeNum(rawOv.unverifiedVoters ?? rawVer.unverified),
+        classifiedVoters: safeNum(rawOv.classifiedVoters ?? rawVoters.classified),
+        unclassifiedVoters: safeNum(rawOv.unclassifiedVoters ?? rawVoters.unclassified),
+        totalBooths: safeNum(rawOv.totalBooths ?? rawBooths.total),
+        totalVolunteers: safeNum(rawOv.totalVolunteers ?? rawBooths.assigned),
         classification: {
-          green: safeStat(cls, 'green'),
-          yellow: safeStat(cls, 'yellow'),
-          red: safeStat(cls, 'red'),
-          black: safeStat(cls, 'black'),
-          unclassified: safeStat(cls, 'unclassified') ?? safeStat(cls, 'none') ?? { count: 0, percentage: 0 },
+          green: extractCategory('green'),
+          yellow: extractCategory('yellow'),
+          red: extractCategory('red'),
+          black: extractCategory('black'),
+          unclassified: extractCategory('unclassified', true),
         },
         verification: {
-          verified: safeStat(ver, 'verified'),
-          unverified: safeStat(ver, 'unverified'),
+          verified: extractVer('verified'),
+          unverified: extractVer('unverified'),
         },
         booths: {
-          total: safeNum(bth.total),
-          strong: safeNum(bth.strong),
-          weak: safeNum(bth.weak),
-          opportunity: safeNum(bth.opportunity),
-          highConfidence: safeNum(bth.highConfidence),
+          total: safeNum(rawBooths.total ?? rawOv.totalBooths),
+          strong: safeNum(rawBooths.strong) || strongTotal,
+          weak: safeNum(rawBooths.weak) || weakTotal,
+          opportunity: safeNum(rawBooths.opportunity) || oppTotal,
+          highConfidence: safeNum(rawBooths.highConfidence) || confTotal,
         },
       };
       setOverview(normalizedOverview);
 
       // 2. Normalize classification
-      const clObj = clRes as unknown as Record<string, unknown>;
+      const clVal = clRes.status === 'fulfilled' ? clRes.value : null;
+      const clObj = clVal as unknown as Record<string, unknown>;
       const rawCl = (clObj && typeof clObj === 'object' && clObj.data && typeof clObj.data === 'object' && !Array.isArray(clObj.data))
         ? clObj.data as Record<string, unknown>
         : clObj ?? {};
-      const clTotal = safeNum(rawCl.total ?? rawCl.totalVoters);
+      const clTotal = safeNum(rawCl.total ?? rawCl.totalVoters ?? totalVoters);
       const items = Array.isArray(rawCl.data) ? (rawCl.data as Array<{ classification?: string; count?: number; percentage?: number }>) : [];
       const mapFromData: Record<string, { count: number; percentage: number }> = {};
       for (const it of items) {
@@ -114,29 +208,37 @@ export function AnalyticsPage() {
         }
         return { count: 0, percentage: 0 };
       };
+      const greenCat = getClCat('green');
+      const yellowCat = getClCat('yellow');
+      const redCat = getClCat('red');
+      const blackCat = getClCat('black');
+      const unclassifiedCount = safeNum(rawCl.unclassifiedVoters ?? rawCl.unclassified ?? mapFromData['unclassified']?.count);
+      const classifiedCount = safeNum(rawCl.classifiedVoters) || (greenCat.count + yellowCat.count + redCat.count + blackCat.count);
+
       const normalizedClassification: ClassificationAnalytics = {
         totalVoters: clTotal,
-        classifiedVoters: safeNum(rawCl.classifiedVoters),
-        unclassifiedVoters: safeNum(rawCl.unclassifiedVoters ?? rawCl.unclassified ?? mapFromData['unclassified']?.count),
-        green: getClCat('green'),
-        yellow: getClCat('yellow'),
-        red: getClCat('red'),
-        black: getClCat('black'),
+        classifiedVoters: classifiedCount,
+        unclassifiedVoters: unclassifiedCount,
+        green: greenCat,
+        yellow: yellowCat,
+        red: redCat,
+        black: blackCat,
       };
       setClassification(normalizedClassification);
 
       // 3. Normalize verification
-      const vrObj = vrRes as unknown as Record<string, unknown>;
+      const vrVal = vrRes.status === 'fulfilled' ? vrRes.value : null;
+      const vrObj = vrVal as unknown as Record<string, unknown>;
       const rawVr = (vrObj && typeof vrObj === 'object' && vrObj.data && typeof vrObj.data === 'object')
         ? vrObj.data as Record<string, unknown>
         : vrObj ?? {};
-      const vrTotal = safeNum(rawVr.total ?? rawVr.totalVoters);
+      const vrTotal = safeNum(rawVr.total ?? rawVr.totalVoters ?? totalVoters);
       const getVrCat = (key: 'verified' | 'unverified') => {
         const val = rawVr[key];
         if (typeof val === 'number') {
           const pct = key === 'verified' && rawVr.verifiedPercentage !== undefined
             ? safeNum(rawVr.verifiedPercentage)
-            : (vrTotal > 0 ? (val / vrTotal) * 100 : 0);
+            : (vrTotal > 0 ? Number(((val / vrTotal) * 100).toFixed(1)) : 0);
           return { count: val, percentage: pct };
         }
         if (val && typeof val === 'object') {
@@ -157,11 +259,17 @@ export function AnalyticsPage() {
   useEffect(() => {
     analyticsApi.getBooths({ page: boothsPage, limit: 20, search: debouncedBoothSearch || undefined })
       .then((r) => {
-        const d = r.data as unknown as { booths: BoothAnalyticsRow[]; total: number; totalPages: number };
-        setBooths(d.booths ?? []);
-        setBoothsTotal(d.total ?? 0);
-        setBoothsTotalPages(d.totalPages ?? 1);
-      }).catch(() => {});
+        const raw = ((r as unknown as { data?: unknown })?.data ?? r) as Record<string, unknown>;
+        const rawList = (Array.isArray(raw) ? raw : (raw.booths ?? raw.data ?? [])) as unknown[];
+        const list = rawList.map(mapBoothRow);
+        const total = typeof raw.total === 'number' ? raw.total : (safeNum((raw.pagination as Record<string, unknown>)?.total) || list.length);
+        const totalPages = typeof raw.totalPages === 'number' ? raw.totalPages : (safeNum((raw.pagination as Record<string, unknown>)?.totalPages) || Math.max(1, Math.ceil(total / 20)));
+        setBooths(list);
+        setBoothsTotal(total);
+        setBoothsTotalPages(totalPages);
+      }).catch((err) => {
+        console.error('[AnalyticsPage] Failed to load booth table:', err);
+      });
   }, [boothsPage, debouncedBoothSearch]);
 
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;

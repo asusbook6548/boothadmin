@@ -11,11 +11,11 @@ function AssemblyRow({ a }: { a: Assembly }) {
       <td className="px-4 py-3 font-medium text-gray-900">
         <div className="flex items-center gap-2">
           {a.isActive && <span className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />}
-          #{a.assemblyNumber}
+          #{a.assemblyNumber ?? (a as unknown as { number?: string | number }).number}
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="font-medium text-gray-900">{a.assemblyName}</div>
+        <div className="font-medium text-gray-900">{a.assemblyName ?? (a as unknown as { name?: string }).name}</div>
         {a.isActive && <div className="text-xs text-indigo-600 font-medium">● Active Assembly</div>}
       </td>
       <td className="px-4 py-3 text-gray-600">{a.district}</td>

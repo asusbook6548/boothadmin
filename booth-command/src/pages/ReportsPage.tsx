@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { reportsApi } from '../api/reports.api';
+import { analyticsApi } from '../api/analytics.api';
 import type { ReportSummary, Voter } from '../types';
 import { SkeletonCard, EmptyState, ErrorState, Pagination, Input, Select, Button } from '../components/ui';
 import { ClassificationBadge, VerificationBadge } from '../components/shared/Badges';
@@ -41,7 +42,75 @@ export function SummaryReportPage() {
   const [data, setData] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const load = () => { setLoading(true); reportsApi.getSummary().then((r) => setData(r.data)).catch(() => setError('Failed')).finally(() => setLoading(false)); };
+
+  const load = () => {
+    setLoading(true);
+    setError('');
+    Promise.allSettled([
+      reportsApi.getSummary(),
+      analyticsApi.getOverview(),
+    ])
+      .then(([summaryRes, overviewRes]) => {
+        const rawSum = (summaryRes.status === 'fulfilled' ? (summaryRes.value as unknown as { data?: unknown })?.data ?? summaryRes.value : {}) as Record<string, unknown>;
+        const rawOv = (overviewRes.status === 'fulfilled' ? (overviewRes.value as unknown as { data?: unknown })?.data ?? overviewRes.value : {}) as Record<string, unknown>;
+        const rawVoters = (rawOv.voters ?? {}) as Record<string, unknown>;
+        const rawVer = (rawOv.verification ?? {}) as Record<string, unknown>;
+        const rawBooths = (rawOv.booths ?? {}) as Record<string, unknown>;
+        const rawCls = (rawOv.classification ?? {}) as Record<string, unknown>;
+        const rawPercentages = (rawCls.percentages ?? {}) as Record<string, unknown>;
+
+        const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
+        const totalVoters = safeNum(rawSum.total ?? rawSum.totalVoters ?? rawOv.totalVoters ?? rawVoters.total);
+
+        const getCat = (key: string) => {
+          const s = (rawSum[key] ?? {}) as Record<string, unknown>;
+          const sCount = safeNum(s.count ?? rawSum[key]);
+          if (sCount > 0) {
+            return {
+              count: sCount,
+              percentage: safeNum(s.percentage) || (totalVoters > 0 ? (sCount / totalVoters) * 100 : 0),
+            };
+          }
+          const ovVal = rawCls[key];
+          const ovCount = typeof ovVal === 'number' ? ovVal : safeNum((ovVal as Record<string, unknown>)?.count);
+          const ovPct = safeNum(rawPercentages[key] ?? (ovVal as Record<string, unknown>)?.percentage) || (totalVoters > 0 ? (ovCount / totalVoters) * 100 : 0);
+          return { count: ovCount, percentage: ovPct };
+        };
+
+        const green = getCat('green');
+        const yellow = getCat('yellow');
+        const red = getCat('red');
+        const black = getCat('black');
+        const unclassifiedCount = safeNum(
+          (rawSum.unclassified as Record<string, unknown>)?.count ?? rawSum.unclassified ?? rawSum.unclassifiedVoters ?? rawOv.unclassifiedVoters ?? rawVoters.unclassified
+        );
+        const unclassifiedPct = totalVoters > 0 ? (unclassifiedCount / totalVoters) * 100 : 0;
+        const unclassified = { count: unclassifiedCount, percentage: unclassifiedPct };
+        const classifiedVoters = safeNum(rawSum.classifiedVoters ?? rawOv.classifiedVoters ?? rawVoters.classified) || (green.count + yellow.count + red.count + black.count);
+
+        const normalized: ReportSummary = {
+          totalVoters,
+          classifiedVoters,
+          unclassifiedVoters: unclassifiedCount,
+          verifiedVoters: safeNum(rawSum.verifiedVoters ?? rawOv.verifiedVoters ?? rawVer.verified),
+          unverifiedVoters: safeNum(rawSum.unverifiedVoters ?? rawOv.unverifiedVoters ?? rawVer.unverified),
+          green,
+          yellow,
+          red,
+          black,
+          totalBooths: safeNum(rawSum.totalBooths ?? rawOv.totalBooths ?? rawBooths.total),
+          totalVolunteers: safeNum(rawSum.totalVolunteers ?? rawOv.totalVolunteers ?? rawBooths.assigned),
+        };
+
+        setData(normalized);
+      })
+      .catch((err) => {
+        console.error('[ReportsPage] Summary load failed:', err);
+        setError('Failed to load summary');
+      })
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => { load(); }, []);
 
   return (
@@ -95,12 +164,16 @@ export function VotersReportPage() {
     setLoading(true);
     reportsApi.getVoters({ page, limit: 20, search: debouncedSearch || undefined, classification: classification as never || undefined })
       .then((r) => {
-        const d = r.data as unknown as { voters: Voter[]; total: number; totalPages: number };
-        setVoters(d.voters ?? []);
-        setTotal(d.total ?? 0);
-        setTotalPages(d.totalPages ?? 1);
+        const raw = (r as unknown as { data?: unknown })?.data ?? r;
+        const rawObj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+        const list = (rawObj.data ?? rawObj.voters ?? (Array.isArray(raw) ? raw : [])) as Voter[];
+        const totalCount = typeof rawObj.total === 'number' ? rawObj.total : list.length;
+        const totalP = typeof rawObj.totalPages === 'number' ? rawObj.totalPages : Math.max(1, Math.ceil(totalCount / 20));
+        setVoters(list);
+        setTotal(totalCount);
+        setTotalPages(totalP);
       })
-      .catch(() => {})
+      .catch((err) => console.error('[ReportsPage] Voters load failed:', err))
       .finally(() => setLoading(false));
   };
 
@@ -160,8 +233,44 @@ export function VotersReportPage() {
 }
 
 // ============================================================
-// BOOTHS / VOLUNTEERS / CLASSIFICATION REPORTS (simplified)
+// BOOTHS / VOLUNTEERS / CLASSIFICATION REPORTS
 // ============================================================
+
+function getCellValue(r: Record<string, unknown>, col: string): string {
+  const c = col.toLowerCase().replace(/ /g, '_');
+  // Handle booth report fields
+  if (c === 'booth_number') return r.boothNumber !== undefined ? `#${r.boothNumber}` : (r.number ? `#${r.number}` : '—');
+  if (c === 'booth_name') return String(r.boothName ?? r.name ?? '—');
+  if (c === 'voters') {
+    const v = r.totalVoters ?? r.total ?? (r._count as Record<string, unknown>)?.voters;
+    return typeof v === 'number' ? v.toLocaleString() : (v !== undefined ? String(v) : '—');
+  }
+  if (c === 'volunteer') return String(r.volunteerName ?? (r.volunteer as Record<string, unknown>)?.name ?? '—');
+
+  // Handle volunteer report fields
+  if (c === 'name') return String(r.name ?? '—');
+  if (c === 'mobile') return String(r.mobile ?? '—');
+  if (c === 'status') return String(r.status ?? '—');
+  if (c === 'booth') {
+    if (r.boothNumber || r.boothName) {
+      return `#${r.boothNumber ?? ''} ${r.boothName ?? ''}`.trim() || '—';
+    }
+    if (r.booth) {
+      const b = r.booth as Record<string, unknown>;
+      return `#${b.boothNumber ?? ''} ${b.name ?? b.boothName ?? ''}`.trim() || '—';
+    }
+    return 'Unassigned';
+  }
+
+  // Handle classification report fields
+  if (c === 'classification') return String(r.classification ?? '—');
+  if (c === 'count') return typeof r.count === 'number' ? r.count.toLocaleString() : String(r.count ?? '—');
+  if (c === 'percentage') return typeof r.percentage === 'number' ? `${r.percentage.toFixed(1)}%` : String(r.percentage ?? '—');
+
+  // Generic fallback
+  const val = r[c] ?? r[col] ?? r[col.toLowerCase()];
+  return val !== undefined && val !== null ? String(val) : '—';
+}
 
 function SimpleReport({ navLabel, fetchFn, exportFn, columns }: {
   title: string; navLabel: string;
@@ -176,9 +285,37 @@ function SimpleReport({ navLabel, fetchFn, exportFn, columns }: {
   useEffect(() => {
     setLoading(true);
     fetchFn().then((r) => {
-      const d = r.data;
-      setRows(Array.isArray(d) ? d as Record<string,unknown>[] : []);
-    }).catch(()=>{}).finally(()=>setLoading(false));
+      const resData = ((r as unknown as { data?: unknown })?.data ?? r) as Record<string, unknown>;
+      let rowsList: Record<string, unknown>[] = [];
+      if (Array.isArray(resData)) {
+        rowsList = resData;
+      } else if (resData && typeof resData === 'object') {
+        if (Array.isArray(resData.data)) {
+          rowsList = resData.data as Record<string, unknown>[];
+        } else if (Array.isArray(resData.booths)) {
+          rowsList = resData.booths as Record<string, unknown>[];
+        } else if (Array.isArray(resData.volunteers)) {
+          rowsList = resData.volunteers as Record<string, unknown>[];
+        } else if (resData.green && resData.yellow) {
+          // Classification report object shape: { green, yellow, red, black, unclassified }
+          const g = resData.green as { count?: number; percentage?: number };
+          const y = resData.yellow as { count?: number; percentage?: number };
+          const red = resData.red as { count?: number; percentage?: number };
+          const blk = resData.black as { count?: number; percentage?: number };
+          const unc = resData.unclassified as { count?: number; percentage?: number };
+          rowsList = [
+            { classification: 'GREEN', count: g?.count ?? 0, percentage: g?.percentage ?? 0 },
+            { classification: 'YELLOW', count: y?.count ?? 0, percentage: y?.percentage ?? 0 },
+            { classification: 'RED', count: red?.count ?? 0, percentage: red?.percentage ?? 0 },
+            { classification: 'BLACK', count: blk?.count ?? 0, percentage: blk?.percentage ?? 0 },
+            { classification: 'UNCLASSIFIED', count: unc?.count ?? 0, percentage: unc?.percentage ?? 0 },
+          ];
+        }
+      }
+      setRows(rowsList);
+    }).catch((err) => {
+      console.error(`[ReportsPage] Failed to fetch ${navLabel}:`, err);
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleExport = async (format: 'xlsx' | 'csv') => {
@@ -212,7 +349,7 @@ function SimpleReport({ navLabel, fetchFn, exportFn, columns }: {
               : rows.length === 0 ? <tr><td colSpan={columns.length}><EmptyState title={`No ${navLabel.toLowerCase()} data`}/></td></tr>
               : rows.map((r,i) => (
                 <tr key={i}>
-                  {columns.map(c => <td key={c}>{String(r[c.toLowerCase().replace(/ /g,'_')] ?? r[c] ?? '—')}</td>)}
+                  {columns.map(c => <td key={c} className="px-4 py-3 text-sm text-gray-800">{getCellValue(r, c)}</td>)}
                 </tr>
               ))}
           </tbody>

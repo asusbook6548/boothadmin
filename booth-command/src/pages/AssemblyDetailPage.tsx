@@ -15,7 +15,15 @@ export function AssemblyDetailPage() {
     if (!id) return;
     setLoading(true);
     assembliesApi.getOne(id)
-      .then((res) => setAssembly(res.data))
+      .then((res) => {
+        const raw = ((res.data as unknown as { assembly?: Assembly })?.assembly ?? res.data) as Assembly;
+        if (raw) {
+          const r = raw as unknown as { name?: string; number?: string | number };
+          if (!raw.assemblyName && r.name) raw.assemblyName = r.name;
+          if (!raw.assemblyNumber && r.number) raw.assemblyNumber = Number(r.number) || (r.number as unknown as number);
+        }
+        setAssembly(raw);
+      })
       .catch(() => setError('Assembly not found'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -30,14 +38,14 @@ export function AssemblyDetailPage() {
           <ChevronLeft className="w-4 h-4" /> Back to Assemblies
         </Link>
         <div className="flex items-center gap-3">
-          <h1 className="page-title">{assembly.assemblyName}</h1>
+          <h1 className="page-title">{assembly.assemblyName ?? (assembly as unknown as { name?: string }).name}</h1>
           {assembly.isActive && <span className="badge badge-indigo">Active</span>}
         </div>
       </div>
 
       <div className="card divide-y divide-gray-100">
         {[
-          { icon: <Hash className="w-4 h-4 text-gray-400" />, label: 'Assembly Number', value: `#${assembly.assemblyNumber}` },
+          { icon: <Hash className="w-4 h-4 text-gray-400" />, label: 'Assembly Number', value: `#${assembly.assemblyNumber ?? (assembly as unknown as { number?: string | number }).number}` },
           { icon: <MapPin className="w-4 h-4 text-gray-400" />, label: 'District', value: assembly.district },
           { icon: <Calendar className="w-4 h-4 text-gray-400" />, label: 'Election Year', value: assembly.electionYear },
           { icon: <Building2 className="w-4 h-4 text-gray-400" />, label: 'Total Booths', value: assembly._count?.booths ?? '—' },
