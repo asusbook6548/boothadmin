@@ -200,29 +200,48 @@ function AuditDetailsRenderer({ log }: { log: AuditLog }) {
             </div>
           </div>
         </div>
-      ) : log.action === 'VOLUNTEER_BOOTH_ASSIGNED' ? (
-        /* 3. Volunteer Booth Assigned */
+      ) : log.action === 'VOLUNTEER_BOOTH_ASSIGNED' || log.action === 'VOLUNTEER_BOOTH_UNASSIGNED' ? (
+        /* 3. Volunteer Booth Assigned / Unassigned */
         <div className="space-y-2.5">
-          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
-            <span>Volunteer was assigned to a polling booth.</span>
+          <div className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
+            log.action === 'VOLUNTEER_BOOTH_ASSIGNED'
+              ? 'bg-blue-50 border border-blue-200 text-blue-900'
+              : 'bg-amber-50 border border-amber-200 text-amber-900'
+          }`}>
+            <CheckCircle2 className={`w-4 h-4 shrink-0 ${
+              log.action === 'VOLUNTEER_BOOTH_ASSIGNED' ? 'text-blue-600' : 'text-amber-600'
+            }`} />
+            <span>
+              {log.action === 'VOLUNTEER_BOOTH_ASSIGNED'
+                ? 'Volunteer was assigned to a polling booth.'
+                : 'Volunteer was removed from polling booth.'}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <span className="text-gray-500 block text-[11px] mb-0.5">Assigned Booth</span>
+              <span className="text-gray-500 block text-[11px] mb-0.5">Volunteer Name</span>
               <span className="font-bold text-gray-900 text-sm">
-                {String(details.boothNumber ? `Booth #${details.boothNumber}` : details.boothId || '—')}
+                {String(log.volunteer?.name || details.volunteerName || details.name || '—')}
+              </span>
+              {(log.volunteer?.mobile || details.mobile) && (
+                <span className="text-[11px] text-gray-500 font-mono block mt-0.5">
+                  {String(log.volunteer?.mobile || details.mobile)}
+                </span>
+              )}
+            </div>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="text-gray-500 block text-[11px] mb-0.5">
+                {log.action === 'VOLUNTEER_BOOTH_ASSIGNED' ? 'Assigned Booth' : 'Previous Booth'}
+              </span>
+              <span className="font-bold text-gray-900 text-sm">
+                {String(
+                  details.boothNumber
+                    ? `Booth #${details.boothNumber}`
+                    : details.boothName || details.boothId || (log.entity === 'BOOTH' ? log.entityId : '') || '—'
+                )}
               </span>
             </div>
-            {details.volunteerId && (
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-gray-500 block text-[11px] mb-0.5">Volunteer ID</span>
-                <span className="font-mono text-gray-700 text-xs truncate block">
-                  {String(details.volunteerId)}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       ) : log.action === 'SYSTEM_SETTINGS_UPDATED' ? (
@@ -539,7 +558,7 @@ export function AuditLogsPage() {
                   <th>Action</th>
                   <th>Entity</th>
                   <th>Performed By</th>
-                  <th>Target Voter</th>
+                  <th>Target Record</th>
                   <th className="text-right">Details</th>
                 </tr>
               </thead>
@@ -575,6 +594,7 @@ export function AuditLogsPage() {
                       dateStyle: 'medium',
                       timeStyle: 'medium',
                     });
+                    const details = log.details as Record<string, unknown> | null;
 
                     return (
                       <tr key={log.id} className="hover:bg-gray-50/75 transition-colors">
@@ -643,6 +663,37 @@ export function AuditLogsPage() {
                               <span className="text-[11px] font-mono text-gray-500">
                                 {log.voter.epic}
                               </span>
+                            </div>
+                          ) : log.volunteer ? (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-xs font-medium text-gray-900">
+                                {log.volunteer.name}
+                              </span>
+                              <span className="text-[11px] font-mono text-gray-500">
+                                {log.volunteer.mobile} (Volunteer)
+                              </span>
+                            </div>
+                          ) : details?.boothNumber ? (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-xs font-medium text-gray-900">
+                                Booth #{String(details.boothNumber)}
+                              </span>
+                              {details.name && (
+                                <span className="text-[11px] text-gray-500 truncate max-w-[140px]" title={String(details.name)}>
+                                  {String(details.name)}
+                                </span>
+                              )}
+                            </div>
+                          ) : details?.email ? (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-xs font-medium text-gray-900 truncate max-w-[140px]" title={String(details.email)}>
+                                {String(details.email)}
+                              </span>
+                              {details.role && (
+                                <span className="text-[11px] text-gray-500">
+                                  {String(details.role)}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
@@ -739,6 +790,14 @@ export function AuditLogsPage() {
                     : '—'}
                 </span>
               </div>
+              {selectedLog.volunteer && (
+                <div>
+                  <span className="text-gray-500 block text-[11px] mb-1 font-medium">Related Volunteer</span>
+                  <span className="text-gray-900 font-medium">
+                    {selectedLog.volunteer.name} ({selectedLog.volunteer.mobile})
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Human-Readable Event Information */}
