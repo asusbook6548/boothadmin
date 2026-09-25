@@ -21,6 +21,13 @@ import {
   UserCheck,
   Calendar,
   X,
+  FileText,
+  Sliders,
+  CheckCircle2,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Database,
 } from 'lucide-react';
 import { getErrorMessage } from '../utils/error';
 
@@ -61,6 +68,269 @@ function getActionBadge(action: string) {
     return 'bg-amber-50 text-amber-700 border-amber-200';
   }
   return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function formatKey(key: string): string {
+  const map: Record<string, string> = {
+    fileName: 'Uploaded File Name',
+    totalRows: 'Total Rows in File',
+    validRows: 'Valid Records',
+    importedRows: 'Successfully Imported Voters',
+    duplicateRows: 'Duplicate Records Skipped',
+    errorRows: 'Errors Encountered',
+    assemblyId: 'Target Assembly ID',
+    boothId: 'Booth ID',
+    boothNumber: 'Booth Number',
+    volunteerId: 'Volunteer ID',
+    userId: 'User ID',
+    oldStatus: 'Previous Status',
+    newStatus: 'Updated Status',
+    oldValue: 'Previous Value',
+    newValue: 'New Value',
+    changedFields: 'Modified Fields',
+    strongGreenPercent: 'Strong Green Threshold',
+    moderateGreenPercent: 'Moderate Green Threshold',
+    highOpportunityYellow: 'High Opportunity Yellow',
+    mediumOpportunityYellow: 'Medium Opportunity Yellow',
+    highVerification: 'High Verification Target',
+    mediumVerification: 'Medium Verification Target',
+  };
+  if (map[key]) return map[key];
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+}
+
+/**
+ * Human-readable details viewer for non-technical users
+ */
+function AuditDetailsRenderer({ log }: { log: AuditLog }) {
+  const [showTechnical, setShowTechnical] = useState(false);
+  const details = log.details as Record<string, unknown> | null;
+
+  if (!details || Object.keys(details).length === 0) {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-xs text-gray-500">
+        No additional details recorded for this activity.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* 1. Voter Import Completed */}
+      {log.action === 'VOTER_IMPORT_COMPLETED' ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-blue-50/80 border border-blue-200 rounded-lg">
+            <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <span className="text-[11px] text-blue-700 font-medium block">Source Excel/CSV File</span>
+              <span className="text-xs font-bold text-blue-950 font-mono">
+                {String(details.fileName || 'Uploaded file')}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+              <span className="text-[11px] text-gray-500 block mb-0.5">Total Rows</span>
+              <span className="text-lg font-bold text-gray-900">
+                {Number(details.totalRows || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
+              <span className="text-[11px] text-emerald-700 block mb-0.5">Imported</span>
+              <span className="text-lg font-bold text-emerald-700">
+                {Number(details.importedRows || details.validRows || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
+              <span className="text-[11px] text-amber-700 block mb-0.5">Duplicates</span>
+              <span className="text-lg font-bold text-amber-700">
+                {Number(details.duplicateRows || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-center">
+              <span className="text-[11px] text-red-700 block mb-0.5">Errors</span>
+              <span className="text-lg font-bold text-red-700">
+                {Number(details.errorRows || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {details.assemblyId && (
+            <div className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+              <span className="text-gray-500 flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-gray-400" />
+                Target Assembly ID:
+              </span>
+              <span className="font-mono text-gray-700 text-[11px]">
+                {String(details.assemblyId)}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : log.action === 'VOLUNTEER_CREATED' ? (
+        /* 2. Volunteer Created */
+        <div className="space-y-2.5">
+          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>New volunteer account was created.</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="text-gray-500 block text-[11px] mb-0.5">Volunteer Name</span>
+              <span className="font-bold text-gray-900 text-sm">
+                {String(details.name || '—')}
+              </span>
+            </div>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="text-gray-500 block text-[11px] mb-0.5">Mobile Number</span>
+              <span className="font-bold text-gray-900 text-sm font-mono">
+                {String(details.mobile || '—')}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : log.action === 'VOLUNTEER_BOOTH_ASSIGNED' ? (
+        /* 3. Volunteer Booth Assigned */
+        <div className="space-y-2.5">
+          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>Volunteer was assigned to a polling booth.</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="text-gray-500 block text-[11px] mb-0.5">Assigned Booth</span>
+              <span className="font-bold text-gray-900 text-sm">
+                {String(details.boothNumber ? `Booth #${details.boothNumber}` : details.boothId || '—')}
+              </span>
+            </div>
+            {details.volunteerId && (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <span className="text-gray-500 block text-[11px] mb-0.5">Volunteer ID</span>
+                <span className="font-mono text-gray-700 text-xs truncate block">
+                  {String(details.volunteerId)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : log.action === 'SYSTEM_SETTINGS_UPDATED' ? (
+        /* 4. System Settings Updated */
+        <div className="space-y-2.5">
+          <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-900 flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-purple-600 shrink-0" />
+            <span>System thresholds and analysis configuration were updated.</span>
+          </div>
+
+          {details.newValues && typeof details.newValues === 'object' ? (
+            <div className="border border-gray-200 rounded-lg overflow-hidden text-xs">
+              <table className="w-full data-table">
+                <thead>
+                  <tr>
+                    <th className="text-left text-[11px]">Configuration Parameter</th>
+                    <th className="text-right text-[11px]">Updated Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(details.newValues as Record<string, unknown>).map(([k, val]) => (
+                    <tr key={k}>
+                      <td className="font-medium text-gray-700">{formatKey(k)}</td>
+                      <td className="text-right font-mono font-bold text-indigo-600">
+                        {String(val)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {Object.entries(details).map(([k, val]) => (
+                <div key={k} className="flex justify-between items-center p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+                  <span className="text-gray-600 font-medium">{formatKey(k)}</span>
+                  <span className="font-bold text-indigo-600 font-mono">{String(val)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* 5. Generic Formatted View for other actions */
+        <div className="space-y-2">
+          {details.oldStatus && details.newStatus && (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+              <span className="text-gray-600 font-medium">Status Changed:</span>
+              <span className="px-2 py-0.5 rounded bg-gray-200 font-bold text-gray-800">
+                {String(details.oldStatus)}
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
+                {String(details.newStatus)}
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {Object.entries(details).map(([key, value]) => {
+              if (key === 'oldStatus' || key === 'newStatus') return null;
+
+              if (value && typeof value === 'object') {
+                return (
+                  <div key={key} className="col-span-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+                    <span className="text-gray-500 font-bold block mb-1.5">{formatKey(key)}</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(value as Record<string, unknown>).map(([subK, subV]) => (
+                        <div key={subK} className="p-2 bg-white border border-gray-200 rounded">
+                          <span className="text-[10px] text-gray-500 block">{formatKey(subK)}</span>
+                          <span className="font-semibold text-gray-800">{String(subV)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={key} className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+                  <span className="text-gray-500 text-[11px] font-medium">{formatKey(key)}:</span>
+                  <span className="font-semibold text-gray-800 text-xs">{String(value)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Developer / Technical Collapsible */}
+      <div className="pt-2 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={() => setShowTechnical(!showTechnical)}
+          className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
+        >
+          {showTechnical ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          <span>{showTechnical ? 'Hide Technical Data' : 'View Technical Data (JSON)'}</span>
+        </button>
+
+        {showTechnical && (
+          <pre className="mt-2 p-3 bg-gray-900 text-emerald-400 rounded-lg text-[11px] overflow-auto max-h-48 font-mono leading-relaxed">
+            {JSON.stringify(details, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function AuditLogsPage() {
@@ -105,7 +375,6 @@ export function AuditLogsPage() {
       queryParams.dateFrom = new Date(filters.dateFrom).toISOString();
     }
     if (filters.dateTo) {
-      // Set to end of selected day if plain date is chosen
       const d = new Date(filters.dateTo);
       d.setHours(23, 59, 59, 999);
       queryParams.dateTo = d.toISOString();
@@ -163,10 +432,10 @@ export function AuditLogsPage() {
 
   const hasActiveFilters = Boolean(
     filters.search ||
-      filters.action ||
-      filters.entity ||
-      filters.dateFrom ||
-      filters.dateTo
+    filters.action ||
+    filters.entity ||
+    filters.dateFrom ||
+    filters.dateTo
   );
 
   return (
@@ -327,7 +596,10 @@ export function AuditLogsPage() {
                               {log.entity}
                             </span>
                             {log.entityId && (
-                              <span className="text-[11px] text-gray-400 font-mono truncate max-w-[130px]" title={log.entityId}>
+                              <span
+                                className="text-[11px] text-gray-400 font-mono truncate max-w-[130px]"
+                                title={log.entityId}
+                              >
                                 {log.entityId}
                               </span>
                             )}
@@ -409,48 +681,58 @@ export function AuditLogsPage() {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal with Human-Friendly Details */}
       {selectedLog && (
         <Modal
           isOpen={Boolean(selectedLog)}
           onClose={() => setSelectedLog(null)}
           title="Audit Log Details"
         >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg text-xs">
+          <div className="space-y-4 space-x-4">
+            {/* Metadata Summary Card */}
+            <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg text-xs border border-gray-200/80">
               <div>
-                <span className="text-gray-500 block">Action</span>
-                <span className="font-semibold text-gray-900">{selectedLog.action}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Timestamp</span>
-                <span className="font-mono text-gray-900">
-                  {new Date(selectedLog.createdAt).toLocaleString()}
+                <span className="text-gray-500 block text-[11px]">Action</span>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border mt-0.5 ${getActionBadge(
+                    selectedLog.action
+                  )}`}
+                >
+                  {selectedLog.action}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block">Entity</span>
+                <span className="text-gray-500 block text-[11px]">Timestamp</span>
+                <span className="font-mono text-gray-800 text-xs font-medium">
+                  {new Date(selectedLog.createdAt).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'medium',
+                  })}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500 block text-[11px]">Target Entity</span>
                 <span className="font-semibold text-gray-900">{selectedLog.entity}</span>
               </div>
               <div>
-                <span className="text-gray-500 block">Entity ID</span>
-                <span className="font-mono text-gray-900 text-[11px] break-all">
+                <span className="text-gray-500 block text-[11px]">Entity ID</span>
+                <span className="font-mono text-gray-700 text-[11px] break-all">
                   {selectedLog.entityId || '—'}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block">Actor</span>
-                <span className="text-gray-900">
+                <span className="text-gray-500 block text-[11px]">Actor (Performed By)</span>
+                <span className="text-gray-900 font-medium">
                   {selectedLog.user
                     ? `${selectedLog.user.name} (${selectedLog.user.email})`
                     : selectedLog.volunteer
-                    ? `${selectedLog.volunteer.name} (${selectedLog.volunteer.mobile})`
-                    : 'System'}
+                      ? `${selectedLog.volunteer.name} (${selectedLog.volunteer.mobile})`
+                      : 'System'}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block">Related Voter</span>
-                <span className="text-gray-900">
+                <span className="text-gray-500 block text-[11px]">Related Voter</span>
+                <span className="text-gray-900 font-medium">
                   {selectedLog.voter
                     ? `${selectedLog.voter.name} (${selectedLog.voter.epic})`
                     : '—'}
@@ -458,22 +740,15 @@ export function AuditLogsPage() {
               </div>
             </div>
 
+            {/* Human-Readable Event Information */}
             <div>
-              <span className="text-xs font-semibold text-gray-700 block mb-1">
-                Payload / Details
+              <span className="text-xs font-bold text-gray-800 block mb-2">
+                Event Activity Details
               </span>
-              <pre className="p-3 bg-gray-900 text-emerald-400 rounded-lg text-xs overflow-auto max-h-64 font-mono leading-relaxed">
-                {selectedLog.details
-                  ? JSON.stringify(selectedLog.details, null, 2)
-                  : '// No additional details'}
-              </pre>
+              <AuditDetailsRenderer log={selectedLog} />
             </div>
 
-            <div className="flex justify-end pt-2">
-              <Button variant="secondary" size="sm" onClick={() => setSelectedLog(null)}>
-                Close
-              </Button>
-            </div>
+
           </div>
         </Modal>
       )}
