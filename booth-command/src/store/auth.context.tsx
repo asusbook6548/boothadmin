@@ -31,23 +31,45 @@ function decodeJwt(token: string): AuthUser | null {
   }
 }
 
+const USER_KEY = 'bc_user_profile';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = getToken();
-    if (stored) {
-      const decoded = decodeJwt(stored);
-      if (decoded) {
-        setTokenState(stored);
-        setUser(decoded);
-      } else {
-        clearToken();
+    const storedToken = getToken();
+    const storedProfile = localStorage.getItem(USER_KEY);
+
+    if (storedToken) {
+      setTokenState(storedToken);
+      if (storedProfile) {
+        try {
+          setUser(JSON.parse(storedProfile));
+        } catch {
+          // ignore corrupted profile
+        }
       }
+
+      // Fetch fresh profile from backend
+      authApi.getMe()
+        .then((res) => {
+          const freshUser = res.data?.user;
+          if (freshUser) {
+            setUser(freshUser);
+            localStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+          }
+        })
+        .catch(() => {
+          // Token invalid or expired
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = useCallback(async (data: LoginRequest) => {
@@ -56,10 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(accessToken);
     setTokenState(accessToken);
     setUser(userData);
+    localStorage.setItem(USER_KEY, JSON.stringify(userData));
   }, []);
 
   const logout = useCallback(() => {
     clearToken();
+    localStorage.removeItem(USER_KEY);
     setTokenState(null);
     setUser(null);
     window.location.href = '/login';

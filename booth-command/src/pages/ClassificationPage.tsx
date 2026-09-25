@@ -199,7 +199,13 @@ export function ClassificationPage() {
     }
   };
 
-  const boothOpts = [{ value: '', label: 'All Booths' }, ...booths.map((b) => ({ value: b.id, label: `#${b.boothNumber} ${b.boothName}` }))];
+  const boothOpts = [
+    { value: '', label: 'All Booths' },
+    ...booths.map((b) => ({
+      value: b.id,
+      label: `#${b.boothNumber}${b.name || b.boothName ? ` — ${b.name || b.boothName}` : ''}`,
+    })),
+  ];
 
   return (
     <div className="space-y-6">

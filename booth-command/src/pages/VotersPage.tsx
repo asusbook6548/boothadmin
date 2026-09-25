@@ -82,7 +82,13 @@ export function VotersPage() {
   const set = (key: keyof VoterFilters, value: unknown) =>
     setFilters((f) => ({ ...f, [key]: value, page: key === 'page' ? value as number : 1 }));
 
-  const boothOpts = [{ value: '', label: 'All Booths' }, ...booths.map((b) => ({ value: b.id, label: `#${b.boothNumber} ${b.boothName}` }))];
+  const boothOpts = [
+    { value: '', label: 'All Booths' },
+    ...booths.map((b) => ({
+      value: b.id,
+      label: `#${b.boothNumber}${b.name || b.boothName ? ` — ${b.name || b.boothName}` : ''}`,
+    })),
+  ];
 
   return (
     <div className="space-y-5">

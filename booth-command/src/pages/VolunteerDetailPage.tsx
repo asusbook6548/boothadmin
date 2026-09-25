@@ -74,7 +74,13 @@ export function VolunteerDetailPage() {
   if (loading) return <div className="flex justify-center py-16"><Spinner size="lg" /></div>;
   if (error || !volunteer) return <ErrorState message={error || 'Volunteer not found'} />;
 
-  const boothOpts = [{ value: '', label: 'Unassigned' }, ...booths.map((b) => ({ value: b.id, label: `#${b.boothNumber} ${b.boothName}` }))];
+  const boothOpts = [
+    { value: '', label: 'Unassigned' },
+    ...booths.map((b) => ({
+      value: b.id,
+      label: `#${b.boothNumber}${b.name || b.boothName ? ` — ${b.name || b.boothName}` : ''}`,
+    })),
+  ];
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto w-full">
@@ -105,7 +111,7 @@ export function VolunteerDetailPage() {
           <h3 className="section-title">Booth Assignment</h3>
           <p className="text-xs text-gray-500">
             {volunteer.booth
-              ? `Currently assigned to: Booth #${volunteer.booth.boothNumber} — ${volunteer.booth.boothName}`
+              ? `Currently assigned to: Booth #${volunteer.booth.boothNumber}${volunteer.booth.name || (volunteer.booth as unknown as { boothName?: string }).boothName ? ` — ${volunteer.booth.name || (volunteer.booth as unknown as { boothName?: string }).boothName}` : ''}`
               : 'Not assigned to any booth'}
           </p>
           <div className="flex items-end gap-3">

@@ -107,7 +107,13 @@ export function VolunteersPage() {
                 <tr key={v.id}>
                   <td className="font-medium text-gray-900">{v.name}</td>
                   <td className="font-mono text-sm text-gray-700">{v.mobile}</td>
-                  <td className="text-gray-600">{v.booth ? `#${v.booth.boothNumber} ${v.booth.boothName}` : <span className="text-gray-400 italic text-xs">Unassigned</span>}</td>
+                  <td className="text-gray-600">
+                    {v.booth ? (
+                      `#${v.booth.boothNumber}${v.booth.name || (v.booth as unknown as { boothName?: string }).boothName ? ` — ${v.booth.name || (v.booth as unknown as { boothName?: string }).boothName}` : ''}`
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">Unassigned</span>
+                    )}
+                  </td>
                   <td><VolunteerStatusBadge value={v.status} /></td>
                   <td className="text-gray-500 text-xs">{new Date(v.createdAt).toLocaleDateString()}</td>
                   <td><Link to={`/volunteers/${v.id}`} className="btn btn-secondary btn-sm">View</Link></td>
