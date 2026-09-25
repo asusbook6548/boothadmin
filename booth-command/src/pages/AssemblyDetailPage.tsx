@@ -32,7 +32,7 @@ export function AssemblyDetailPage() {
   if (error || !assembly) return <ErrorState message={error || 'Assembly not found'} />;
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-6 max-w-5xl mx-auto w-full">
       <div>
         <Link to="/assemblies" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline mb-3">
           <ChevronLeft className="w-4 h-4" /> Back to Assemblies

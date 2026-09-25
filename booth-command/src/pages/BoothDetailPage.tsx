@@ -89,7 +89,7 @@ export function BoothDetailPage() {
   if (error || !booth) return <ErrorState message={error || 'Booth not found'} />;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-7xl mx-auto w-full">
       <div>
         <Link to="/booths" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline mb-3">
           <ChevronLeft className="w-4 h-4" /> Back to Booths

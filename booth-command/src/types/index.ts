@@ -59,8 +59,10 @@ export interface AuthUser {
 
 export interface Assembly {
   id: string;
-  assemblyNumber: number;
-  assemblyName: string;
+  assemblyNumber?: number;
+  number?: string | number;
+  assemblyName?: string;
+  name?: string;
   district: string;
   electionYear: number;
   isActive: boolean;
@@ -78,8 +80,9 @@ export interface Assembly {
 
 export interface Booth {
   id: string;
-  boothNumber: number;
-  boothName: string;
+  boothNumber: number | string;
+  boothName?: string;
+  name?: string;
   village?: string;
   assemblyId: string;
   status: BoothStatus;
@@ -102,12 +105,19 @@ export interface Voter {
   name: string;
   nameHindi?: string;
   fatherName?: string;
+  fatherNameHindi?: string;
+  motherName?: string;
+  husbandName?: string;
   gender?: string;
   age?: number;
+  dateOfBirth?: string;
   mobile?: string;
   houseNumber?: string;
-  partNumber?: number;
-  serialNumber?: number;
+  village?: string;
+  partNumber?: number | string;
+  partSerial?: number | string;
+  serialNumber?: number | string;
+  pollingStationName?: string;
   assemblyId: string;
   boothId?: string;
   classification?: Classification;
@@ -117,6 +127,14 @@ export interface Voter {
   updatedAt: string;
   assembly?: Assembly;
   booth?: Booth;
+  classificationHistory?: Array<{
+    id: string;
+    oldValue?: Classification | null;
+    newValue: Classification;
+    changedAt: string;
+    changedBy?: { name: string } | null;
+    changedByUser?: { name: string } | null;
+  }>;
 }
 
 // ============================================================
