@@ -36,32 +36,31 @@ export function BoothDetailPage() {
       setBooth(rawBoothObj);
 
       const rawAnObj = ((analyticsRes as unknown as { data?: unknown })?.data) as Record<string, unknown> | null;
-      const rawAn = (rawAnObj?.booth ?? rawAnObj) as Record<string, unknown> | null;
-      if (rawAn) {
-        const v = (rawAn.voters ?? {}) as Record<string, number>;
-        const p = (rawAn.percentages ?? {}) as Record<string, number>;
-        const a = (rawAn.analysis ?? {}) as Record<string, string>;
+      if (rawAnObj) {
+        const v = ((rawAnObj.voters as Record<string, number>) ?? (rawAnObj.booth as Record<string, unknown>)?.voters ?? {}) as Record<string, number>;
+        const p = ((rawAnObj.percentages as Record<string, number>) ?? (rawAnObj.booth as Record<string, unknown>)?.percentages ?? {}) as Record<string, number>;
+        const a = ((rawAnObj.analysis as Record<string, string>) ?? (rawAnObj.booth as Record<string, unknown>)?.analysis ?? {}) as Record<string, string>;
         const safeNum = (val: unknown): number => (typeof val === 'number' && !isNaN(val) ? val : 0);
 
         const normalizedAn: SingleBoothAnalytics = {
           booth: rawBoothObj,
-          totalVoters: safeNum(v.total ?? rawAn.totalVoters),
-          greenCount: safeNum(v.green ?? rawAn.greenCount),
-          yellowCount: safeNum(v.yellow ?? rawAn.yellowCount),
-          redCount: safeNum(v.red ?? rawAn.redCount),
-          blackCount: safeNum(v.black ?? rawAn.blackCount),
-          unclassifiedCount: safeNum(v.unclassified ?? rawAn.unclassifiedCount),
-          greenPercent: safeNum(p.green ?? rawAn.greenPercent),
-          yellowPercent: safeNum(p.yellow ?? rawAn.yellowPercent),
-          redPercent: safeNum(p.red ?? rawAn.redPercent),
-          blackPercent: safeNum(p.black ?? rawAn.blackPercent),
-          unclassifiedPercent: safeNum(p.unclassified ?? rawAn.unclassifiedPercent),
-          verifiedCount: safeNum(v.verified ?? rawAn.verifiedCount),
-          unverifiedCount: safeNum(v.unverified ?? rawAn.unverifiedCount),
-          verifiedPercent: safeNum(p.verified ?? rawAn.verifiedPercent),
-          strength: String(a.greenStrength ?? rawAn.strength ?? '—'),
-          opportunity: String(a.yellowOpportunity ?? rawAn.opportunity ?? '—'),
-          confidence: String(a.dataConfidence ?? rawAn.confidence ?? '—'),
+          totalVoters: safeNum(v.total ?? rawAnObj.totalVoters),
+          greenCount: safeNum(v.green ?? rawAnObj.greenCount),
+          yellowCount: safeNum(v.yellow ?? rawAnObj.yellowCount),
+          redCount: safeNum(v.red ?? rawAnObj.redCount),
+          blackCount: safeNum(v.black ?? rawAnObj.blackCount),
+          unclassifiedCount: safeNum(v.unclassified ?? rawAnObj.unclassifiedCount),
+          greenPercent: safeNum(p.green ?? rawAnObj.greenPercent),
+          yellowPercent: safeNum(p.yellow ?? rawAnObj.yellowPercent),
+          redPercent: safeNum(p.red ?? rawAnObj.redPercent),
+          blackPercent: safeNum(p.black ?? rawAnObj.blackPercent),
+          unclassifiedPercent: safeNum(p.unclassified ?? rawAnObj.unclassifiedPercent),
+          verifiedCount: safeNum(v.verified ?? rawAnObj.verifiedCount),
+          unverifiedCount: safeNum(v.unverified ?? rawAnObj.unverifiedCount),
+          verifiedPercent: safeNum(p.verified ?? rawAnObj.verifiedPercent),
+          strength: String(a.greenStrength ?? rawAnObj.strength ?? '—'),
+          opportunity: String(a.yellowOpportunity ?? rawAnObj.opportunity ?? '—'),
+          confidence: String(a.dataConfidence ?? rawAnObj.confidence ?? '—'),
         };
         setAnalytics(normalizedAn);
       } else {
