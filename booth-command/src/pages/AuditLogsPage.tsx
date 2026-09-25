@@ -234,19 +234,19 @@ function AuditDetailsRenderer({ log }: { log: AuditLog }) {
           </div>
 
           {details.newValues && typeof details.newValues === 'object' ? (
-            <div className="border border-gray-200 rounded-lg overflow-hidden text-xs">
-              <table className="w-full data-table">
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr>
-                    <th className="text-left text-[11px]">Configuration Parameter</th>
-                    <th className="text-right text-[11px]">Updated Value</th>
+                  <tr className="bg-gray-50/80 border-b border-gray-200">
+                    <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-[11px] uppercase tracking-wider">Configuration Parameter</th>
+                    <th className="text-right px-4 py-2.5 font-semibold text-gray-600 text-[11px] uppercase tracking-wider">Updated Value</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {Object.entries(details.newValues as Record<string, unknown>).map(([k, val]) => (
-                    <tr key={k}>
-                      <td className="font-medium text-gray-700">{formatKey(k)}</td>
-                      <td className="text-right font-mono font-bold text-indigo-600">
+                    <tr key={k} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-4 py-2.5 font-medium text-gray-800">{formatKey(k)}</td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-indigo-600">
                         {String(val)}%
                       </td>
                     </tr>
@@ -687,14 +687,15 @@ export function AuditLogsPage() {
           isOpen={Boolean(selectedLog)}
           onClose={() => setSelectedLog(null)}
           title="Audit Log Details"
+          maxWidth="lg"
         >
-          <div className="space-y-4 space-x-4">
+          <div className="p-6 space-y-5">
             {/* Metadata Summary Card */}
-            <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg text-xs border border-gray-200/80">
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50/90 rounded-xl border border-gray-200 text-xs">
               <div>
-                <span className="text-gray-500 block text-[11px]">Action</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Action</span>
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border mt-0.5 ${getActionBadge(
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getActionBadge(
                     selectedLog.action
                   )}`}
                 >
@@ -702,7 +703,7 @@ export function AuditLogsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block text-[11px]">Timestamp</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Timestamp</span>
                 <span className="font-mono text-gray-800 text-xs font-medium">
                   {new Date(selectedLog.createdAt).toLocaleString(undefined, {
                     dateStyle: 'medium',
@@ -711,17 +712,17 @@ export function AuditLogsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block text-[11px]">Target Entity</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Target Entity</span>
                 <span className="font-semibold text-gray-900">{selectedLog.entity}</span>
               </div>
               <div>
-                <span className="text-gray-500 block text-[11px]">Entity ID</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Entity ID</span>
                 <span className="font-mono text-gray-700 text-[11px] break-all">
                   {selectedLog.entityId || '—'}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block text-[11px]">Actor (Performed By)</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Actor (Performed By)</span>
                 <span className="text-gray-900 font-medium">
                   {selectedLog.user
                     ? `${selectedLog.user.name} (${selectedLog.user.email})`
@@ -731,7 +732,7 @@ export function AuditLogsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-gray-500 block text-[11px]">Related Voter</span>
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Related Voter</span>
                 <span className="text-gray-900 font-medium">
                   {selectedLog.voter
                     ? `${selectedLog.voter.name} (${selectedLog.voter.epic})`
@@ -741,14 +742,14 @@ export function AuditLogsPage() {
             </div>
 
             {/* Human-Readable Event Information */}
-            <div>
-              <span className="text-xs font-bold text-gray-800 block mb-2">
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
                 Event Activity Details
               </span>
               <AuditDetailsRenderer log={selectedLog} />
             </div>
 
-
+            
           </div>
         </Modal>
       )}
