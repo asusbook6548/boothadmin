@@ -103,6 +103,177 @@ function formatKey(key: string): string {
     .trim();
 }
 
+function renderTargetRecord(log: AuditLog) {
+  const details = log.details as Record<string, unknown> | null;
+
+  // 1. Voter
+  if (log.voter || log.entity === 'VOTER') {
+    const voterName = log.voter?.name || (details?.name ? String(details.name) : 'Voter Record');
+    const voterEpic = log.voter?.epic || (details?.epic ? String(details.epic) : log.entityId);
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={voterName}>
+          {voterName}
+        </span>
+        {voterEpic && (
+          <span className="text-[11px] font-mono text-gray-500 truncate max-w-[150px]" title={String(voterEpic)}>
+            {String(voterEpic)}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 2. User entity or targetUser
+  if (log.entity === 'USER' || log.targetUser) {
+    const targetUser = log.targetUser;
+    const userName = targetUser?.name || (details?.name ? String(details.name) : undefined);
+    const userEmail = targetUser?.email || (details?.email ? String(details.email) : undefined);
+    const userRole = targetUser?.role || (details?.role ? String(details.role) : undefined);
+
+    if (userName || userEmail) {
+      return (
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={userName || userEmail}>
+            {userName || userEmail}
+          </span>
+          <span className="text-[11px] text-gray-500 truncate max-w-[150px]" title={userEmail}>
+            {userName && userEmail ? userEmail : ''}
+            {userRole ? ` (${userRole})` : ''}
+          </span>
+        </div>
+      );
+    }
+
+    if (log.entityId) {
+      return (
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs font-medium text-gray-800">User Record</span>
+          <span className="text-[11px] font-mono text-gray-400 truncate max-w-[130px]" title={log.entityId}>
+            {log.entityId}
+          </span>
+        </div>
+      );
+    }
+  }
+
+  // 3. Volunteer entity
+  if (log.entity === 'VOLUNTEER' || (log.volunteer && !log.userId)) {
+    const volName = log.volunteer?.name || (details?.name ? String(details.name) : 'Volunteer Record');
+    const volMobile = log.volunteer?.mobile || (details?.mobile ? String(details.mobile) : log.entityId);
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={volName}>
+          {volName}
+        </span>
+        {volMobile && (
+          <span className="text-[11px] font-mono text-gray-500 truncate max-w-[150px]" title={String(volMobile)}>
+            {String(volMobile)} (Volunteer)
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 4. Booth entity
+  if (log.entity === 'BOOTH' || log.targetBooth || details?.boothNumber) {
+    const boothNum = log.targetBooth?.boothNumber ?? details?.boothNumber;
+    const boothName = log.targetBooth?.name || (details?.name ? String(details.name) : (details?.boothName ? String(details.boothName) : undefined));
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]">
+          {boothNum !== undefined ? `Booth #${String(boothNum)}` : 'Booth Record'}
+        </span>
+        {boothName && (
+          <span className="text-[11px] text-gray-500 truncate max-w-[150px]" title={boothName}>
+            {boothName}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 5. Import Batch
+  if (log.entity === 'IMPORT_BATCH' || details?.fileName) {
+    const fileName = details?.fileName ? String(details.fileName) : 'Import Batch';
+    const rowCount = details?.importedRows ?? details?.validRows;
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={fileName}>
+          {fileName}
+        </span>
+        {rowCount !== undefined ? (
+          <span className="text-[11px] text-emerald-600 font-medium">
+            {Number(rowCount).toLocaleString()} voters imported
+          </span>
+        ) : (
+          <span className="text-[11px] text-gray-400">
+            Import Batch
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 6. Assembly entity
+  if (log.entity === 'ASSEMBLY' || log.targetAssembly) {
+    const asmName = log.targetAssembly?.name || (details?.name ? String(details.name) : 'Assembly Record');
+    const asmCode = log.targetAssembly?.code || (details?.code ? String(details.code) : undefined);
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={asmName}>
+          {asmName}
+        </span>
+        {asmCode && (
+          <span className="text-[11px] font-mono text-gray-500">
+            {asmCode}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 7. System Settings
+  if (log.entity === 'SYSTEM_SETTINGS') {
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900">System Settings</span>
+        <span className="text-[11px] text-gray-500">Configuration</span>
+      </div>
+    );
+  }
+
+  // 8. Other email / name in details
+  if (details?.email || details?.name) {
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={String(details.name || details.email)}>
+          {String(details.name || details.email)}
+        </span>
+        {details.email && details.name && (
+          <span className="text-[11px] text-gray-500 truncate max-w-[150px]" title={String(details.email)}>
+            {String(details.email)}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // 9. Generic with entityId
+  if (log.entityId) {
+    return (
+      <div className="flex flex-col leading-tight">
+        <span className="text-xs font-medium text-gray-700">{log.entity} Record</span>
+        <span className="text-[11px] font-mono text-gray-400 truncate max-w-[130px]" title={log.entityId}>
+          {log.entityId}
+        </span>
+      </div>
+    );
+  }
+
+  return <span className="text-xs text-gray-400">—</span>;
+}
+
 /**
  * Human-readable details viewer for non-technical users
  */
@@ -655,49 +826,7 @@ export function AuditLogsPage() {
                           )}
                         </td>
                         <td>
-                          {log.voter ? (
-                            <div className="flex flex-col leading-tight">
-                              <span className="text-xs font-medium text-gray-900">
-                                {log.voter.name}
-                              </span>
-                              <span className="text-[11px] font-mono text-gray-500">
-                                {log.voter.epic}
-                              </span>
-                            </div>
-                          ) : log.volunteer ? (
-                            <div className="flex flex-col leading-tight">
-                              <span className="text-xs font-medium text-gray-900">
-                                {log.volunteer.name}
-                              </span>
-                              <span className="text-[11px] font-mono text-gray-500">
-                                {log.volunteer.mobile} (Volunteer)
-                              </span>
-                            </div>
-                          ) : details?.boothNumber ? (
-                            <div className="flex flex-col leading-tight">
-                              <span className="text-xs font-medium text-gray-900">
-                                Booth #{String(details.boothNumber)}
-                              </span>
-                              {details.name && (
-                                <span className="text-[11px] text-gray-500 truncate max-w-[140px]" title={String(details.name)}>
-                                  {String(details.name)}
-                                </span>
-                              )}
-                            </div>
-                          ) : details?.email ? (
-                            <div className="flex flex-col leading-tight">
-                              <span className="text-xs font-medium text-gray-900 truncate max-w-[140px]" title={String(details.email)}>
-                                {String(details.email)}
-                              </span>
-                              {details.role && (
-                                <span className="text-[11px] text-gray-500">
-                                  {String(details.role)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">—</span>
-                          )}
+                          {renderTargetRecord(log)}
                         </td>
                         <td className="text-right">
                           <Button
@@ -798,6 +927,12 @@ export function AuditLogsPage() {
                   </span>
                 </div>
               )}
+              <div className="col-span-2 p-3 bg-white rounded-lg border border-gray-200">
+                <span className="text-gray-500 block text-[11px] mb-1 font-medium">Target Record</span>
+                <div className="mt-0.5">
+                  {renderTargetRecord(selectedLog)}
+                </div>
+              </div>
             </div>
 
             {/* Human-Readable Event Information */}

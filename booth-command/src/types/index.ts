@@ -379,6 +379,9 @@ export interface AuditLog {
   user?: AuditLogUser | null;
   volunteer?: AuditLogVolunteer | null;
   voter?: AuditLogVoter | null;
+  targetUser?: AuditLogUser | null;
+  targetBooth?: { id: string; boothNumber: string | number; name?: string } | null;
+  targetAssembly?: { id: string; name: string; code?: string } | null;
   createdAt: string;
 }
 
