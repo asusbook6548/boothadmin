@@ -85,8 +85,6 @@ export function SummaryReportPage() {
         const unclassifiedCount = safeNum(
           (rawSum.unclassified as Record<string, unknown>)?.count ?? rawSum.unclassified ?? rawSum.unclassifiedVoters ?? rawOv.unclassifiedVoters ?? rawVoters.unclassified
         );
-        const unclassifiedPct = totalVoters > 0 ? (unclassifiedCount / totalVoters) * 100 : 0;
-        const unclassified = { count: unclassifiedCount, percentage: unclassifiedPct };
         const classifiedVoters = safeNum(rawSum.classifiedVoters ?? rawOv.classifiedVoters ?? rawVoters.classified) || (green.count + yellow.count + red.count + black.count);
 
         const normalized: ReportSummary = {

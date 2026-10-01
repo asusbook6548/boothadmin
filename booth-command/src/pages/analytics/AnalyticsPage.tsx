@@ -145,7 +145,7 @@ export function AnalyticsPage() {
       let confFromList: number | null = null;
 
       if (allBoothsRes.status === 'fulfilled') {
-        const bVal = allBoothsRes.value as Record<string, unknown> | null;
+        const bVal = allBoothsRes.value as unknown as Record<string, unknown> | null;
         const bData = (bVal?.data ?? bVal) as Record<string, unknown> | null;
         const bList = (Array.isArray(bData?.booths) ? bData.booths : Array.isArray(bVal?.booths) ? bVal.booths : []) as Array<Record<string, unknown>>;
 

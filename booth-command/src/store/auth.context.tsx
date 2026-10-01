@@ -14,23 +14,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Decode JWT payload (without verification — server validates)
-function decodeJwt(token: string): AuthUser | null {
-  try {
-    const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
-    return {
-      id: decoded.id ?? decoded.sub,
-      name: decoded.name ?? '',
-      email: decoded.email ?? '',
-      role: decoded.role ?? 'ADMIN',
-      status: decoded.status ?? 'ACTIVE',
-    };
-  } catch {
-    return null;
-  }
-}
-
 const USER_KEY = 'bc_user_profile';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

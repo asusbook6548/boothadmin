@@ -250,7 +250,7 @@ function renderTargetRecord(log: AuditLog) {
         <span className="text-xs font-medium text-gray-900 truncate max-w-[150px]" title={String(details.name || details.email)}>
           {String(details.name || details.email)}
         </span>
-        {details.email && details.name && (
+        {Boolean(details.email && details.name) && (
           <span className="text-[11px] text-gray-500 truncate max-w-[150px]" title={String(details.email)}>
             {String(details.email)}
           </span>
@@ -336,7 +336,7 @@ function AuditDetailsRenderer({ log }: { log: AuditLog }) {
             </div>
           </div>
 
-          {details.assemblyId && (
+          {Boolean(details.assemblyId) && (
             <div className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs">
               <span className="text-gray-500 flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-gray-400" />
@@ -395,7 +395,7 @@ function AuditDetailsRenderer({ log }: { log: AuditLog }) {
               <span className="font-bold text-gray-900 text-sm">
                 {String(log.volunteer?.name || details.volunteerName || details.name || '—')}
               </span>
-              {(log.volunteer?.mobile || details.mobile) && (
+              {Boolean(log.volunteer?.mobile || details.mobile) && (
                 <span className="text-[11px] text-gray-500 font-mono block mt-0.5">
                   {String(log.volunteer?.mobile || details.mobile)}
                 </span>
@@ -458,7 +458,7 @@ function AuditDetailsRenderer({ log }: { log: AuditLog }) {
       ) : (
         /* 5. Generic Formatted View for other actions */
         <div className="space-y-2">
-          {details.oldStatus && details.newStatus && (
+          {Boolean(details.oldStatus && details.newStatus) && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
               <span className="text-gray-600 font-medium">Status Changed:</span>
               <span className="px-2 py-0.5 rounded bg-gray-200 font-bold text-gray-800">
@@ -765,8 +765,6 @@ export function AuditLogsPage() {
                       dateStyle: 'medium',
                       timeStyle: 'medium',
                     });
-                    const details = log.details as Record<string, unknown> | null;
-
                     return (
                       <tr key={log.id} className="hover:bg-gray-50/75 transition-colors">
                         <td className="whitespace-nowrap text-xs text-gray-600 font-mono">

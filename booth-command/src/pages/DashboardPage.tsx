@@ -158,7 +158,7 @@ export function DashboardPage() {
         let confFromList: number | null = null;
 
         if (allBoothsResult.status === 'fulfilled') {
-          const bVal = allBoothsResult.value as Record<string, unknown> | null;
+          const bVal = allBoothsResult.value as unknown as Record<string, unknown> | null;
           const bData = (bVal?.data ?? bVal) as Record<string, unknown> | null;
           const bList = (Array.isArray(bData?.booths) ? bData.booths : Array.isArray(bVal?.booths) ? bVal.booths : []) as Array<Record<string, unknown>>;
 
