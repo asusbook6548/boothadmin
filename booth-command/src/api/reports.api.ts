@@ -32,7 +32,8 @@ const download = (url: string, params: Record<string, string | number | boolean 
   ).toString();
 
   const token = localStorage.getItem('bc_access_token');
-  return fetch(`http://localhost:5000${url}${queryString ? '?' + queryString : ''}`, {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+  return fetch(`${apiBase}${url}${queryString ? '?' + queryString : ''}`, {
     headers: { Authorization: `Bearer ${token}` },
   }).then(async (res) => {
     if (!res.ok) throw new Error('Export failed');
