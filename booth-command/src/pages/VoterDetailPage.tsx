@@ -53,7 +53,7 @@ export function VoterDetailPage() {
   const rawBooth = voter.booth as (typeof voter.booth & { name?: string }) | undefined;
   const boothNumber = rawBooth?.boothNumber ?? voter.partNumber ?? null;
   const boothName = rawBooth?.boothName || rawBooth?.name || voter.pollingStationName || '';
-  const boothVillage = rawBooth?.village || voter.village || '';
+  const boothVillage = rawBooth?.village || '';
 
   const rawAssembly = voter.assembly as (typeof voter.assembly & { name?: string; number?: string | number }) | undefined;
   const assemblyName = rawAssembly?.assemblyName || rawAssembly?.name || '';
@@ -298,7 +298,7 @@ export function VoterDetailPage() {
 
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Village / Locality</p>
-                <p className="mt-1 font-medium text-gray-900">{voter.village || boothVillage || '—'}</p>
+                <p className="mt-1 font-medium text-gray-900">{boothVillage || '—'}</p>
               </div>
             </div>
           </div>

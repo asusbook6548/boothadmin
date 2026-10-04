@@ -113,7 +113,6 @@ export interface Voter {
   dateOfBirth?: string;
   mobile?: string;
   houseNumber?: string;
-  village?: string;
   partNumber?: number | string;
   partSerial?: number | string;
   serialNumber?: number | string;

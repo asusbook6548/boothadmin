@@ -38,13 +38,14 @@ export function ImportPage() {
       .then((r) => {
         const d = r.data;
 
-        const list = Array.isArray(d)
-          ? d
-          : (
-              d as unknown as {
-                assemblies?: Assembly[];
-              }
-            ).assemblies ?? [];
+        let list: Assembly[] = [];
+        if (Array.isArray(d)) {
+          list = d;
+        } else if ((d as any)?.assembly) {
+          list = [(d as any).assembly];
+        } else if (Array.isArray((d as any)?.assemblies)) {
+          list = (d as any).assemblies;
+        }
 
         setAssemblies(list);
 
@@ -56,7 +57,9 @@ export function ImportPage() {
           setAssemblyId(list[0].id);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load assemblies:', err);
+      });
   }, []);
 
   const handleFile = (f: File) => {
@@ -93,15 +96,10 @@ export function ImportPage() {
   );
 
   const handleImport = async () => {
-    const targetAssemblyId = assemblyId || assemblies[0]?.id;
+    const targetAssemblyId = assemblyId || assemblies[0]?.id || '';
 
     if (!file) {
       toast.error('Please select a voter file to import');
-      return;
-    }
-
-    if (!targetAssemblyId) {
-      toast.error('Target assembly not found. Please refresh the page.');
       return;
     }
 
