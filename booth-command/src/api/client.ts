@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getErrorMessage } from '../utils/error';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://booth-production-122a.up.railway.app/';
 const TOKEN_KEY = 'bc_access_token';
 
 // ============================================================
