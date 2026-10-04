@@ -1,5 +1,5 @@
 import { useAuth } from '../../store/auth.context';
-import { Bell, LogOut, User, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Bell, LogOut, User,HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { assembliesApi } from '../../api/assemblies.api';
 import type { Assembly } from '../../types';
@@ -22,22 +22,57 @@ export function Topbar() {
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 gap-4 flex-shrink-0 z-10">
-      {/* Active Assembly Indicator */}
+      {/* Assembly Details in Header */}
       <div className="flex items-center gap-3">
         {activeAssembly === undefined ? (
-          <div className="skeleton h-5 w-48 rounded" />
+          <div className="skeleton h-8 w-72 rounded-xl" />
         ) : activeAssembly === null ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
             <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-amber-700">No Active Assembly</span>
+            <span className="text-xs font-medium text-gray-600">No Assembly Configured</span>
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-indigo-800 truncate max-w-xs">
-              Active: {activeAssembly.assemblyName}
-              <span className="ml-1 text-indigo-500">#{activeAssembly.assemblyNumber}</span>
-            </span>
+          <div className="flex items-center gap-4">
+            {/* Assembly Number */}
+            <div className="flex items-center gap-1.5">
+                           <HouseIcon className="w-3.5 h-3.5 text-indigo-600 hidden sm:block flex-shrink-0" />
+
+              <span className="text-sm font-bold uppercase tracking-wider text-slate-400">Assembly No :</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">                #{activeAssembly.number ?? activeAssembly.assemblyNumber}
+              </span>
+            </div>
+
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+            {/* Assembly Name */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600 hidden sm:block flex-shrink-0" />
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold uppercase tracking-wider text-slate-400 hidden md:inline">
+                  Assembly Name :
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+                  {activeAssembly.name ?? activeAssembly.assemblyName}
+                </span>
+              </div>
+            </div>
+
+            {/* District */}
+            {activeAssembly.district && (
+              <>
+                <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-rose-500 hidden sm:block flex-shrink-0" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-bold uppercase tracking-wider text-slate-400 hidden md:inline">
+                      Assembly District :
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">                      {activeAssembly.district}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

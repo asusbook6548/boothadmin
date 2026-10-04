@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import {
-  LayoutDashboard, Building2, Landmark, Tags,
+  LayoutDashboard, Landmark, Tags,
   UserCheck, BarChart3, FileText, Upload, Shield, Settings,
   ClipboardList, ChevronLeft, ChevronRight, Vote, LogOut,
 } from 'lucide-react';
@@ -19,7 +19,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-  { to: '/assemblies', label: 'Assemblies', icon: <Building2 className="w-5 h-5" /> },
   { to: '/booths', label: 'Booths', icon: <Landmark className="w-5 h-5" /> },
   { to: '/voters', label: 'Voters', icon: <Vote className="w-5 h-5" /> },
   { to: '/classification', label: 'Classification', icon: <Tags className="w-5 h-5" /> },
