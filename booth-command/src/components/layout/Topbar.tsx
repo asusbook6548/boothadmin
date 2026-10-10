@@ -93,10 +93,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Right Actions */}
       <div className="flex items-center gap-2 ml-auto">
-        {/* Notification placeholder */}
-        <button className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-          <Bell className="w-5 h-5" />
-        </button>
+      
 
         {/* Profile Menu */}
         <div className="relative">
