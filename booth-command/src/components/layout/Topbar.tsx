@@ -1,5 +1,5 @@
 import { useAuth } from '../../store/auth.context';
-import { Bell, LogOut, User, HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin, Menu } from 'lucide-react';
+import { LogOut, User, HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { assembliesApi } from '../../api/assemblies.api';
 import type { Assembly } from '../../types';

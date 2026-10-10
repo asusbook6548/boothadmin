@@ -170,6 +170,23 @@ export interface User {
 // ============================================================
 
 export interface OverviewAnalytics {
+  selectedBooth?: {
+    id: string;
+    boothNumber: number | string;
+    name?: string;
+    village?: string;
+    volunteer?: {
+      id: string;
+      name: string;
+      mobile?: string;
+      status?: string;
+    } | null;
+  } | null;
+  analysis?: {
+    greenStrength?: string;
+    yellowOpportunity?: string;
+    dataConfidence?: string;
+  };
   totalVoters: number;
   verifiedVoters: number;
   unverifiedVoters: number;

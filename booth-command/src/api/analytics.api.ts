@@ -23,8 +23,8 @@ interface BoothAnalysisParams {
 }
 
 export const analyticsApi = {
-  getOverview: () =>
-    client.get<ApiResponse<OverviewAnalytics>>('/api/analytics/overview').then((r) => r.data),
+  getOverview: (params?: { boothId?: string }) =>
+    client.get<ApiResponse<OverviewAnalytics>>('/api/analytics/overview', { params }).then((r) => r.data),
 
   getClassification: () =>
     client.get<ApiResponse<ClassificationAnalytics>>('/api/analytics/classification').then((r) => r.data),
