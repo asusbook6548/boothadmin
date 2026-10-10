@@ -1,10 +1,14 @@
 import { useAuth } from '../../store/auth.context';
-import { Bell, LogOut, User,HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin } from 'lucide-react';
+import { Bell, LogOut, User, HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { assembliesApi } from '../../api/assemblies.api';
 import type { Assembly } from '../../types';
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeAssembly, setActiveAssembly] = useState<Assembly | null | undefined>(undefined);
@@ -21,37 +25,47 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 gap-4 flex-shrink-0 z-10">
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 gap-2 sm:gap-4 flex-shrink-0 z-10">
       {/* Assembly Details in Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg md:hidden transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Open navigation menu"
+          title="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         {activeAssembly === undefined ? (
-          <div className="skeleton h-8 w-72 rounded-xl" />
+          <div className="skeleton h-8 w-36 sm:w-72 rounded-xl" />
         ) : activeAssembly === null ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+          <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
             <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-gray-600">No Assembly Configured</span>
+            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">No Assembly Configured</span>
           </div>
         ) : (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 truncate">
             {/* Assembly Number */}
-            <div className="flex items-center gap-1.5">
-                           <HouseIcon className="w-3.5 h-3.5 text-indigo-600 hidden sm:block flex-shrink-0" />
-
-              <span className="text-sm font-bold uppercase tracking-wider text-slate-400">Assembly No :</span>
-              <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">                #{activeAssembly.number ?? activeAssembly.assemblyNumber}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <HouseIcon className="w-3.5 h-3.5 text-indigo-600 hidden sm:block flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-400">Assembly No :</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+                #{activeAssembly.number ?? activeAssembly.assemblyNumber}
               </span>
             </div>
 
-            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+            <div className="h-4 w-px bg-slate-200 hidden sm:block flex-shrink-0" />
 
             {/* Assembly Name */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Building2 className="w-3.5 h-3.5 text-indigo-600 hidden sm:block flex-shrink-0" />
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 min-w-0">
                 <span className="text-sm font-bold uppercase tracking-wider text-slate-400 hidden md:inline">
                   Assembly Name :
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+                <span className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight truncate">
                   {activeAssembly.name ?? activeAssembly.assemblyName}
                 </span>
               </div>
