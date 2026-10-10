@@ -7,7 +7,7 @@ export const assembliesApi = {
       const body = r.data;
       const inner = body?.data;
       let list: Assembly[] = [];
-
+      
       if (Array.isArray(inner)) {
         list = inner;
       } else if (inner?.assembly) {
@@ -36,5 +36,8 @@ export const assembliesApi = {
         data: assembly,
       } as ApiResponse<Assembly>;
     }),
+
+  create: (data: { number: string; name: string; district: string; electionYear: number }) =>
+    client.post<ApiResponse<{ assembly: Assembly }>>('/api/assemblies', data).then((r) => r.data),
 };
 

@@ -1,8 +1,7 @@
 import { useAuth } from '../../store/auth.context';
+import { useAssembly } from '../../store/assembly.context';
 import { LogOut, User, HouseIcon, ChevronDown, AlertTriangle, Building2, MapPin, Menu } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { assembliesApi } from '../../api/assemblies.api';
-import type { Assembly } from '../../types';
+import { useState } from 'react';
 
 interface TopbarProps {
   onMenuClick?: () => void;
@@ -10,19 +9,8 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth();
+  const { assembly: activeAssembly, openModal } = useAssembly();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [activeAssembly, setActiveAssembly] = useState<Assembly | null | undefined>(undefined);
-
-  useEffect(() => {
-    assembliesApi.getAll()
-      .then((res) => {
-        const data = res.data;
-        const assemblies = Array.isArray(data) ? data : (data as unknown as { assemblies?: Assembly[] }).assemblies ?? [];
-        const active = assemblies.find((a) => a.isActive) ?? null;
-        setActiveAssembly(active);
-      })
-      .catch(() => setActiveAssembly(null));
-  }, []);
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 sm:px-4 gap-2 sm:gap-4 flex-shrink-0 z-10">
@@ -41,10 +29,16 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         {activeAssembly === undefined ? (
           <div className="skeleton h-8 w-36 sm:w-72 rounded-xl" />
         ) : activeAssembly === null ? (
-          <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
-            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">No Assembly Configured</span>
-          </div>
+          <button
+            type="button"
+            onClick={openModal}
+            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors cursor-pointer group text-left"
+            title="Click to configure assembly constituency"
+          >
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 animate-pulse" />
+            <span className="text-xs font-semibold text-amber-800 whitespace-nowrap">No Assembly Configured</span>
+            <span className="text-[11px] font-medium text-amber-600 underline group-hover:text-amber-900 hidden sm:inline">(Configure Now)</span>
+          </button>
         ) : (
           <div className="flex items-center gap-2 sm:gap-4 truncate">
             {/* Assembly Number */}

@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { assembliesApi } from '../api/assemblies.api';
 import type { Assembly } from '../types';
-import { SkeletonRow, EmptyState, ErrorState } from '../components/ui';
-import { Building2, CheckCircle } from 'lucide-react';
+import { SkeletonRow, EmptyState, ErrorState, Button } from '../components/ui';
+import { Building2, CheckCircle, Plus } from 'lucide-react';
+import { useAssembly } from '../store/assembly.context';
 
 function AssemblyRow({ a }: { a: Assembly }) {
   return (
@@ -35,6 +36,7 @@ function AssemblyRow({ a }: { a: Assembly }) {
 }
 
 export function AssembliesPage() {
+  const { openModal } = useAssembly();
   const [assemblies, setAssemblies] = useState<Assembly[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,6 +55,12 @@ export function AssembliesPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    const handleConfigured = () => { load(); };
+    window.addEventListener('assembly:configured', handleConfigured);
+    return () => window.removeEventListener('assembly:configured', handleConfigured);
+  }, []);
+
   return (
     <div className="space-y-5">
       <div className="page-header flex items-center justify-between">
@@ -60,6 +68,16 @@ export function AssembliesPage() {
           <h1 className="page-title">Assemblies</h1>
           <p className="page-subtitle">Only one active assembly is supported at a time</p>
         </div>
+        {assemblies.length === 0 && !loading && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openModal}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            Configure Assembly
+          </Button>
+        )}
       </div>
 
       {/* Active assembly warning banner */}
@@ -92,7 +110,25 @@ export function AssembliesPage() {
             ) : error ? (
               <tr><td colSpan={8}><ErrorState message={error} onRetry={load} /></td></tr>
             ) : assemblies.length === 0 ? (
-              <tr><td colSpan={8}><EmptyState icon={<Building2 className="w-12 h-12" />} title="No assemblies found" /></td></tr>
+              <tr>
+                <td colSpan={8}>
+                  <EmptyState
+                    icon={<Building2 className="w-12 h-12" />}
+                    title="No assemblies configured"
+                    description="Set up your constituency details to activate voter lists and booth assignments."
+                    action={
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={openModal}
+                        icon={<Plus className="w-4 h-4" />}
+                      >
+                        Configure Assembly Now
+                      </Button>
+                    }
+                  />
+                </td>
+              </tr>
             ) : (
               assemblies.map((a) => <AssemblyRow key={a.id} a={a} />)
             )}

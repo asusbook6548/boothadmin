@@ -10,8 +10,9 @@ import type { OverviewAnalytics, Booth } from '../types';
 import { SkeletonCard, ErrorState } from '../components/ui';
 import {
   Users, CheckCircle, XCircle, Tags, Landmark, UserCheck, TrendingUp,
-  X, ShieldCheck, Zap, Activity
+  X, ShieldCheck, Zap, Activity, Building2
 } from 'lucide-react';
+import { useAssembly } from '../store/assembly.context';
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
   GREEN: '#10b981',
@@ -65,6 +66,7 @@ function ClassificationProgressBar({ label, count, percentage }: {
 }
 
 export function DashboardPage() {
+  const { assembly, openModal } = useAssembly();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlBoothId = searchParams.get('boothId') || '';
 
@@ -76,18 +78,20 @@ export function DashboardPage() {
 
   const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
 
-  // Fetch all booths for the dropdown filter once on mount
+  // Fetch all booths when an assembly is present
   useEffect(() => {
-    boothsApi.getAll({ limit: 500 })
-      .then((res) => {
-        const d = res.data as unknown as { booths?: Booth[] } | Booth[];
-        const list = (Array.isArray(d) ? d : d.booths ?? []) as Booth[];
-        setBooths(list);
-      })
-      .catch((err) => {
-        console.error('[DashboardPage] Failed to fetch booths:', err);
-      });
-  }, []);
+    if (assembly) {
+      boothsApi.getAll({ limit: 500 })
+        .then((res) => {
+          const d = res.data as unknown as { booths?: Booth[] } | Booth[];
+          const list = (Array.isArray(d) ? d : d.booths ?? []) as Booth[];
+          setBooths(list);
+        })
+        .catch((err) => {
+          console.error('[DashboardPage] Failed to fetch booths:', err);
+        });
+    }
+  }, [assembly]);
 
   // Sync state if URL changes externally
   useEffect(() => {
@@ -389,7 +393,19 @@ export function DashboardPage() {
   };
 
   useEffect(() => {
-    load(selectedBoothId);
+    if (assembly) {
+      load(selectedBoothId);
+    } else if (assembly === null) {
+      setLoading(false);
+    }
+  }, [assembly, selectedBoothId]);
+
+  useEffect(() => {
+    const handleConfigured = () => {
+      load(selectedBoothId);
+    };
+    window.addEventListener('assembly:configured', handleConfigured);
+    return () => window.removeEventListener('assembly:configured', handleConfigured);
   }, [selectedBoothId]);
 
   const handleBoothChange = (newBoothId: string) => {
@@ -401,7 +417,7 @@ export function DashboardPage() {
     }
   };
 
-  if (loading && !data) {
+  if (loading && !data && assembly !== null) {
     return (
       <div className="space-y-6">
         <div className="page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -413,6 +429,32 @@ export function DashboardPage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (assembly === null) {
+    return (
+      <div className="card p-8 sm:p-12 text-center max-w-xl mx-auto my-12 space-y-5 border-2 border-dashed border-amber-300 bg-amber-50/50 shadow-sm rounded-2xl">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-sm">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">No Assembly Constituency Configured</h2>
+          <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">
+            Booth Command requires an active election assembly constituency to calculate dashboard statistics, booth metrics, and voter lists.
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={openModal}
+            className="btn btn-primary px-6 py-2.5 shadow-md inline-flex items-center gap-2 cursor-pointer text-sm font-semibold"
+          >
+            <Building2 className="w-4 h-4" />
+            Configure Assembly Details
+          </button>
         </div>
       </div>
     );
