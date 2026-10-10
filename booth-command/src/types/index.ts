@@ -307,6 +307,7 @@ export interface ImportResult {
   importedRows: number;
   duplicateRows: number;
   errorRows: number;
+  newBoothsCreated?: number;
   errors?: ImportError[];
 }
 

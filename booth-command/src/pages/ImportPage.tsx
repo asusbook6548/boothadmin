@@ -16,10 +16,24 @@ import {
   Database,
   RefreshCw,
   Clock,
+  Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { getErrorMessage } from '../utils/error';
+import { prepareVoterFile } from '../utils/fileChunker';
+
+interface ChunkProgressState {
+  active: boolean;
+  current: number;
+  total: number;
+  startRow: number;
+  endRow: number;
+  totalRows: number;
+  processedRows: number;
+  statusText: string;
+  percentage: number;
+}
 
 export function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -29,6 +43,8 @@ export function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [preparationStatus, setPreparationStatus] = useState('');
+  const [chunkProgress, setChunkProgress] = useState<ChunkProgressState | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +95,8 @@ export function ImportPage() {
     setFile(f);
     setResult(null);
     setError('');
+    setChunkProgress(null);
+    setPreparationStatus('');
   };
 
   const onDrop = useCallback(
@@ -106,28 +124,122 @@ export function ImportPage() {
     setImporting(true);
     setError('');
     setResult(null);
+    setChunkProgress(null);
 
     try {
-      const res = await votersApi.import(
-        file,
-        targetAssemblyId
-      );
+      setPreparationStatus('Analyzing file structure and row count...');
 
-      setResult(res.data ?? res);
+      // Smart bulk preparation: files > 20,000 rows (e.g. 3.5 lakh) are divided
+      // into 20,000-record batches to prevent 504/ERR_NETWORK timeouts and server memory crashes
+      const prepared = await prepareVoterFile(file, 20000, (msg) => {
+        setPreparationStatus(msg);
+      });
 
-      toast.success(
-        'Voter import completed successfully!'
-      );
+      if (!prepared.isChunked) {
+        // Standard single file upload (<= 20,000 records)
+        setPreparationStatus('Uploading voter records to server...');
+        const res = await votersApi.import(file, targetAssemblyId);
+        setResult(res.data ?? res);
+        toast.success('Voter import completed successfully!');
+      } else {
+        // Massive bulk dataset (e.g. 3.5 lakh records) divided into safe 20k batches
+        const chunks = prepared.chunks;
+        const accumulated: ImportResult = {
+          totalRows: prepared.totalRows,
+          validRows: 0,
+          importedRows: 0,
+          duplicateRows: 0,
+          errorRows: 0,
+          newBoothsCreated: 0,
+          errors: [],
+        };
+
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const pct = Math.round((i / chunks.length) * 100);
+
+          setChunkProgress({
+            active: true,
+            current: i + 1,
+            total: chunks.length,
+            startRow: chunk.startRow,
+            endRow: chunk.endRow,
+            totalRows: prepared.totalRows,
+            processedRows: accumulated.validRows,
+            statusText: `Uploading & merging Batch ${i + 1} of ${chunks.length} (Records ${chunk.startRow.toLocaleString()} – ${chunk.endRow.toLocaleString()})...`,
+            percentage: pct,
+          });
+
+          // Upload chunk with automatic retry if connection glitches
+          let chunkRes: any = null;
+          let lastErr: any = null;
+
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              chunkRes = await votersApi.import(chunk.file, targetAssemblyId);
+              break;
+            } catch (attemptErr) {
+              lastErr = attemptErr;
+              if (attempt < 2) {
+                setChunkProgress((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        statusText: `Connection retry ${attempt + 1} for Batch ${i + 1} of ${chunks.length}...`,
+                      }
+                    : null
+                );
+                await new Promise((r) => setTimeout(r, 2500));
+              }
+            }
+          }
+
+          if (!chunkRes) {
+            throw lastErr || new Error(`Failed to upload batch ${i + 1}`);
+          }
+
+          const chunkData = (chunkRes.data ?? chunkRes) as ImportResult;
+          accumulated.validRows += chunkData.validRows ?? 0;
+          accumulated.importedRows += chunkData.importedRows ?? 0;
+          accumulated.duplicateRows += chunkData.duplicateRows ?? 0;
+          accumulated.errorRows += chunkData.errorRows ?? 0;
+          accumulated.newBoothsCreated = (accumulated.newBoothsCreated ?? 0) + (chunkData.newBoothsCreated ?? 0);
+
+          if (chunkData.errors && Array.isArray(chunkData.errors)) {
+            accumulated.errors = [...(accumulated.errors ?? []), ...chunkData.errors];
+          }
+
+          const newPct = Math.round(((i + 1) / chunks.length) * 100);
+          setChunkProgress({
+            active: true,
+            current: i + 1,
+            total: chunks.length,
+            startRow: chunk.startRow,
+            endRow: chunk.endRow,
+            totalRows: prepared.totalRows,
+            processedRows: accumulated.validRows,
+            statusText: `Batch ${i + 1} of ${chunks.length} completed successfully`,
+            percentage: newPct,
+          });
+        }
+
+        setResult(accumulated);
+        toast.success(
+          `All ${prepared.totalRows.toLocaleString()} voter records successfully imported across ${chunks.length} batches!`
+        );
+      }
     } catch (err: unknown) {
       const msg = getErrorMessage(
         err,
-        'Import failed. Please check your spreadsheet format.'
+        'Import failed. Please check your spreadsheet format or network connection.'
       );
 
       setError(msg);
       toast.error(msg);
     } finally {
       setImporting(false);
+      setChunkProgress(null);
+      setPreparationStatus('');
     }
   };
 
@@ -645,6 +757,57 @@ export function ImportPage() {
               </div>
             )}
 
+            {/* High-volume roll protection notice */}
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900">
+              <Zap className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Automatic High-Volume Roll Protection:</span>{' '}
+                Files with over 20,000 records (such as 3.5 lakh / 350,000 voters) are automatically partitioned into safe 20,000-record batches. This eliminates server timeouts (504/Network Error) and guarantees reliable database merging.
+              </div>
+            </div>
+
+            {/* Live Batch Progress Bar */}
+            {importing && (
+              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50/90 via-white to-blue-50/80 border border-indigo-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
+                    <span className="font-bold text-gray-900">
+                      {chunkProgress?.active
+                        ? `Processing Batch ${chunkProgress.current} of ${chunkProgress.total}`
+                        : 'Preparing Import...'}
+                    </span>
+                  </div>
+                  {chunkProgress && (
+                    <span className="font-mono font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[11px]">
+                      {chunkProgress.percentage}% Completed
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress Bar Track */}
+                <div className="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-600 to-emerald-500 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${chunkProgress ? Math.max(chunkProgress.percentage, 5) : 35}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                  <span className="truncate pr-2">
+                    {chunkProgress?.statusText || preparationStatus || 'Processing voter records...'}
+                  </span>
+                  {chunkProgress && (
+                    <span className="flex-shrink-0 font-medium text-gray-700 font-mono">
+                      {chunkProgress.processedRows.toLocaleString()} / {chunkProgress.totalRows.toLocaleString()} rows
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Import button */}
             <div className="pt-2">
 
@@ -667,7 +830,9 @@ export function ImportPage() {
                 className="w-full justify-center py-3 text-base font-semibold shadow-md"
               >
                 {importing
-                  ? 'Processing & Merging Records...'
+                  ? chunkProgress
+                    ? `Processing Batch ${chunkProgress.current} of ${chunkProgress.total}...`
+                    : 'Processing & Merging Records...'
                   : 'Start Voter Import'}
               </Button>
 
