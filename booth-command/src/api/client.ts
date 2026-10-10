@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getErrorMessage } from '../utils/error';
 
-const API_BASE = 'https://booth-production-122a.up.railway.app/';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const TOKEN_KEY = 'bc_access_token';
 
 // ============================================================
