@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import {
   LayoutDashboard, Landmark, Tags,
   UserCheck, BarChart3, FileText, Upload, Shield, Settings,
-  ClipboardList, ChevronLeft, ChevronRight, Vote, LogOut, X,
+  ChevronLeft, ChevronRight, Vote, LogOut, X,
 } from 'lucide-react';
 import { useAuth } from '../../store/auth.context';
 import { useEffect } from 'react';
@@ -47,7 +47,6 @@ const navItems: NavItem[] = [
   { to: '/import', label: 'Import Voters', icon: <Upload className="w-5 h-5" /> },
   { to: '/users', label: 'Users', icon: <Shield className="w-5 h-5" /> },
   { to: '/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
-  { to: '/audit-logs', label: 'Audit Logs', icon: <ClipboardList className="w-5 h-5" /> },
 ];
 
 interface SidebarProps {

@@ -23,7 +23,6 @@ import { VolunteersPage } from './pages/VolunteersPage';
 import { VolunteerDetailPage } from './pages/VolunteerDetailPage';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { AuditLogsPage } from './pages/AuditLogsPage';
 import { Spinner } from './components/ui';
 
 // ============================================================
@@ -157,9 +156,6 @@ function AppRoutes() {
 
         {/* Settings */}
         <Route path="/settings" element={<SettingsPage />} />
-
-        {/* Audit Logs */}
-        <Route path="/audit-logs" element={<AuditLogsPage />} />
 
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

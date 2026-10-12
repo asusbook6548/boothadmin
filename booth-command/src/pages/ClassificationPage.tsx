@@ -337,7 +337,7 @@ export function ClassificationPage() {
         onClose={() => setBulkConfirm(false)}
         onConfirm={handleBulk}
         title="Bulk Classification"
-        message={`Change classification for ${selectedIds.size} selected voters to ${bulkClass}? This action is recorded in the audit log.`}
+        message={`Change classification for ${selectedIds.size} selected voters to ${bulkClass}?`}
         confirmLabel={`Apply to ${selectedIds.size} Voters`}
         confirmVariant="primary"
         loading={bulkLoading}

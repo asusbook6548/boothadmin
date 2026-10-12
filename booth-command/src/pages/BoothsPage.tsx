@@ -238,7 +238,7 @@ export function BoothsPage() {
             </div>
           )}
           <p className="text-xs text-gray-500">
-            This booth will be assigned to the current active Assembly. Audit log will record this creation.
+            This booth will be assigned to the current active Assembly.
           </p>
           <div className="flex gap-3 pt-2">
             <Button type="submit" variant="primary" loading={createLoading}>
